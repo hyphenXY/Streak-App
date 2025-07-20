@@ -1,14 +1,15 @@
 package main
 
 import (
-    "fmt"
-    "net/http"
+	"fmt"
+
+	"github.com/hyphenXY/Streak-App/internal/routes"
 )
 
 func main() {
-    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprintln(w, "Hello from Go backend!")
-    })
-    fmt.Println("Server running on http://localhost:8080")
-    http.ListenAndServe(":8080", nil)
+	r := routes.SetupRouter()
+
+	fmt.Println("🚀 Server running on http://localhost:8080")
+	// Gin automatically listens and serves
+	r.Run(":8080")
 }
