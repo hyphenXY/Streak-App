@@ -4,8 +4,8 @@ import "time"
 
 type User_Admins struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement"`
-	UserID    uint      `gorm:"not null"`
-	AdminID   uint      `gorm:"not null"`
+	UserID    uint      `gorm:""`
+	AdminID   uint      `gorm:""`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

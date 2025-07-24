@@ -1,13 +1,16 @@
 package user_controller
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hyphenXY/Streak-App/internal/dataproviders"
 	"github.com/hyphenXY/Streak-App/internal/models"
-	// "github.com/hyphenXY/Streak-App/internal/services/authentication"
+	"github.com/hyphenXY/Streak-App/internal/utils"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // POST /user/signIn
@@ -23,18 +26,67 @@ func SignIn(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid request payload"})
 		return
 	}
+
+	var user models.User
+	if err := dataprovider.DB.Where("user_name = ?", req.UserName).First(&user).Error; err != nil {
+		// User not found
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username! try to remember it."})
+		return
+	}
+
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		// Wrong password
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password! work your brain or reset it."})
+		return
+	}
+
+	accessToken, err := utils.GenerateJWT(map[string]any{
+		"user_id": user.ID,
+		"role":    "user",
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create token"})
+		return
+	}
+
+	refreshToken, err := utils.GenerateRefreshToken()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create refresh token"})
+		return
+	}
+
+	refreshTokenExpiry := time.Now().Add(30 * 24 * time.Hour) // 30 days
+	if err := dataprovider.UpdateUserRefreshToken(user.ID, refreshToken, refreshTokenExpiry); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update refresh token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Sign in successful",
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"user": gin.H{
+			"id":        user.ID,
+			"username":  user.UserName,
+			"email":     user.Email,
+			"firstName": user.FirstName,
+			"lastName":  user.LastName,
+			"phone":     user.Phone,
+		},
+	})
 }
 
 func SignUp(c *gin.Context) {
 	// 1️⃣ Parse JSON body
 	type SignUpRequest struct {
-		UserName  string    `json:"userName" binding:"required"`
-		Password  string    `json:"password" binding:"required"`
-		Email     string    `json:"email" binding:"required"`
-		FirstName string    `json:"firstName" binding:"required"`
-		LastName  string    `json:"lastName" binding:"required"`
-		Phone     string    `json:"phone" binding:"required"`
-		DoB       time.Time `json:"dob" binding:"required"`
+		UserName  string `json:"userName" binding:"required"`
+		Password  string `json:"password" binding:"required"`
+		Email     string `json:"email" binding:"required"`
+		FirstName string `json:"firstName" binding:"required"`
+		LastName  string `json:"lastName" binding:"required"`
+		Phone     string `json:"phone" binding:"required"`
+		DoB       string `json:"dob" binding:"required"`
 	}
 	var req SignUpRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -42,9 +94,27 @@ func SignUp(c *gin.Context) {
 		return
 	}
 
-	err := dataprovider.CreateUser(&models.User{
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	var existingUser models.User
+	if err := dataprovider.DB.
+		Where("user_name = ? OR email = ?", req.UserName, req.Email).
+		First(&existingUser).Error; err == nil {
+		// Found a record
+		c.JSON(http.StatusConflict, gin.H{"error": "username, or email already exists."})
+		return
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// Some other DB error
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	err = dataprovider.CreateUser(&models.User{
 		UserName:  req.UserName,
-		Password:  req.Password,
+		Password:  string(hashedPassword),
 		Email:     req.Email,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
