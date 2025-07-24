@@ -20,16 +20,24 @@ func AuthUserMiddleware() gin.HandlerFunc {
         token := strings.TrimPrefix(header, "Bearer ")
         claims, err := utils.ValidateJWT(token, "user")
         if err != nil {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+            switch err.Error() {
+            case "token expired":
+                c.JSON(http.StatusUnauthorized, gin.H{"error": "token expired"})
+            case "forbidden: role mismatch":
+                c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: role mismatch"})
+            default:
+                c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+            }
             c.Abort()
             return
         }
 
-        // Store user info for downstream handlers
+        // Token valid
         c.Set("user_id", claims["user_id"])
         c.Next()
     }
 }
+
 
 func AuthAdminMiddleware() gin.HandlerFunc {
     return func(c *gin.Context) {
