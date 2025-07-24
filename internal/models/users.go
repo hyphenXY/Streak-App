@@ -10,7 +10,6 @@ type User struct {
 	Phone     string    `gorm:"size:10;not null;unique"`
 	UserName  string    `gorm:"size:50;not null;unique"`
 	Password  string    `gorm:"not null"`
-	AdminID   uint      `gorm:"not null"`
 	Location  string    `gorm:"size:100;not null"`
 	DOB       time.Time `gorm:"not null"`
 	CreatedAt time.Time

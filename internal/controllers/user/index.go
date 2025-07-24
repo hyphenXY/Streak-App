@@ -2,50 +2,62 @@ package user_controller
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hyphenXY/Streak-App/internal/dataproviders"
+	"github.com/hyphenXY/Streak-App/internal/models"
+	// "github.com/hyphenXY/Streak-App/internal/services/authentication"
 )
 
 // POST /user/signIn
 func SignIn(c *gin.Context) {
-	// You can bind JSON here for email/password
+	// 1️⃣ Parse JSON body
 	type SignInRequest struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		UserName string `json:"userName" binding:"required"`
+		Password string `json:"password" binding:"required"`
 	}
 
 	var req SignInRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": "Invalid request payload"})
 		return
 	}
-
-	// TODO: authenticate user
-	c.JSON(http.StatusOK, gin.H{
-		"message": "User signed in successfully",
-		"email":   req.Email,
-	})
 }
 
-// POST /user/signUp
 func SignUp(c *gin.Context) {
+	// 1️⃣ Parse JSON body
 	type SignUpRequest struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		UserName  string    `json:"userName" binding:"required"`
+		Password  string    `json:"password" binding:"required"`
+		Email     string    `json:"email" binding:"required"`
+		FirstName string    `json:"firstName" binding:"required"`
+		LastName  string    `json:"lastName" binding:"required"`
+		Phone     string    `json:"phone" binding:"required"`
+		DoB       time.Time `json:"dob" binding:"required"`
 	}
-
 	var req SignUpRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
-	// TODO: save user to DB
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "User signed up successfully",
-		"name":    req.Name,
+	err := dataprovider.CreateUser(&models.User{
+		UserName:  req.UserName,
+		Password:  req.Password,
+		Email:     req.Email,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Phone:     req.Phone,
+		DOB:       req.DoB,
 	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
+
 }
 
 // GET /user/homepage/:id
