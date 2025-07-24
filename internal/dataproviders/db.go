@@ -1,15 +1,17 @@
 package dataprovider
 
 import (
-    "database/sql"
     "fmt"
     "log"
     "os"
 
-    _ "github.com/go-sql-driver/mysql"
+    "gorm.io/gorm"
+    "gorm.io/driver/mysql"
+    "github.com/hyphenXY/Streak-App/internal/models"
+    
 )
 
-var DB *sql.DB
+var DB *gorm.DB
 
 func InitDB() error {
     user := os.Getenv("DB_USER")
@@ -22,18 +24,24 @@ func InitDB() error {
         user, password, host, port, dbname)
 
     var err error
-    DB, err = sql.Open("mysql", dsn)
+    DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
     if err != nil {
-        return fmt.Errorf("error creating DB handle: %w", err)
+        return fmt.Errorf("error connecting to DB: %w", err)
     }
 
-    if err = DB.Ping(); err != nil {
-        // Close the handle since Ping failed
-        DB.Close()
-        DB = nil
-        return fmt.Errorf("error pinging DB: %w", err)
+    log.Println("✅ Connected to MySQL (via GORM)!")
+
+    // 👉 Load your models here and auto-migrate:
+    err = DB.AutoMigrate(
+        &models.User{},       // import from your models package
+        &models.Admin{},
+        &models.Root{},
+        &models.Attendance{},
+    )
+    if err != nil {
+        return fmt.Errorf("auto migration failed: %w", err)
     }
 
-    log.Println("✅ Connected to MySQL!")
+    log.Println("✅ Tables migrated successfully!")
     return nil
 }

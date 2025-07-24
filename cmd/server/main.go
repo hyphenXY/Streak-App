@@ -1,27 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"log"
+    "fmt"
+    "log"
 
-	"github.com/hyphenXY/Streak-App/internal/dataproviders"
-	"github.com/hyphenXY/Streak-App/internal/routes"
-	"github.com/joho/godotenv"
+    "github.com/hyphenXY/Streak-App/internal/dataproviders"
+    "github.com/hyphenXY/Streak-App/internal/routes"
+    "github.com/joho/godotenv"
 )
 
 func main() {
-	// Load .env if you use one
-	_ = godotenv.Load()
+    // Load .env file
+    _ = godotenv.Load()
 
-	if err := dataprovider.InitDB(); err != nil {
-		log.Printf("⚠️  Could not connect to database: %v", err)
-		// DB is nil; your app should handle it gracefully in handlers
-	} else {
-		defer dataprovider.DB.Close()
-	}
+    // Initialize DB (connect + migrate)
+    if err := dataprovider.InitDB(); err != nil {
+        log.Fatalf("❌ Could not initialize database: %v", err)
+    }
 
-	// Start router
-	r := routes.SetupRouter()
-	fmt.Println("🚀 Server running on http://localhost:8080")
-	r.Run(":8080")
+    // Start the Gin router
+    r := routes.SetupRouter()
+
+    fmt.Println("🚀 Server running on http://localhost:8080")
+    if err := r.Run(":8080"); err != nil {
+        log.Fatalf("❌ Server failed: %v", err)
+    }
 }
