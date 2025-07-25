@@ -4,8 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"math/big"
 	"os"
 	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -66,4 +69,16 @@ func GenerateRefreshToken() (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+func GenerateOTP() (string, error) {
+	otp := ""
+	for i := 0; i < 6; i++ {
+		n, err := rand.Int(rand.Reader, big.NewInt(10)) // random digit 0–9
+		if err != nil {
+			return "", err
+		}
+		otp += fmt.Sprintf("%d", n.Int64())
+	}
+	return otp, nil
 }

@@ -11,7 +11,7 @@ type Admin struct {
 	UserName           string    `gorm:"size:50;"`
 	Password           string    `gorm:""`
 	Location           string    `gorm:"size:100;"`
-	DOB                time.Time `gorm:""`
+	DOB                string    `gorm:""`
 	Status             string    `gorm:"type:ENUM('approved', 'rejected', 'pending');default:'pending'"`
 	RefreshToken       string    `gorm:"size:255"`
 	RefreshTokenExpiry time.Time `gorm:""`

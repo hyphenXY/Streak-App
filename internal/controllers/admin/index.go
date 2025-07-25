@@ -1,51 +1,134 @@
 package admin_controller
 
 import (
+	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hyphenXY/Streak-App/internal/dataproviders"
+	"github.com/hyphenXY/Streak-App/internal/models"
+	"github.com/hyphenXY/Streak-App/internal/utils"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // POST /user/signIn
 func SignIn(c *gin.Context) {
-	// You can bind JSON here for email/password
+	// 1️⃣ Parse JSON body
 	type SignInRequest struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		UserName string `json:"userName" binding:"required"`
+		Password string `json:"password" binding:"required"`
 	}
 
 	var req SignInRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
-	// TODO: authenticate user
+	var user models.Admin
+	if err := dataprovider.DB.Where("user_name = ?", req.UserName).First(&user).Error; err != nil {
+		// User not found
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username! try to remember it."})
+		return
+	}
+
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		// Wrong password
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password! work your brain or reset it."})
+		return
+	}
+
+	accessToken, err := utils.GenerateJWT(map[string]any{
+		"AdminId": user.ID,
+		"role":    "admin",
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create token"})
+		return
+	}
+
+	refreshToken, err := utils.GenerateRefreshToken()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create refresh token"})
+		return
+	}
+
+	refreshTokenExpiry := time.Now().Add(30 * 24 * time.Hour) // 30 days
+	if err := dataprovider.UpdateAdminRefreshToken(user.ID, refreshToken, refreshTokenExpiry); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update refresh token"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "User signed in successfully",
-		"email":   req.Email,
+		"message":       "Sign in successful",
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"admin": gin.H{
+			"id":        user.ID,
+			"username":  user.UserName,
+			"email":     user.Email,
+			"firstName": user.FirstName,
+			"lastName":  user.LastName,
+			"phone":     user.Phone,
+		},
 	})
 }
 
 // POST /user/signUp
 func Register(c *gin.Context) {
+	// 1️⃣ Parse JSON body
 	type SignUpRequest struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		UserName  string `json:"userName" binding:"required"`
+		Password  string `json:"password" binding:"required"`
+		Email     string `json:"email" binding:"required"`
+		FirstName string `json:"firstName" binding:"required"`
+		LastName  string `json:"lastName" binding:"required"`
+		Phone     string `json:"phone" binding:"required"`
+		DoB       string `json:"dob" binding:"required"`
 	}
-
 	var req SignUpRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
-	// TODO: save user to DB
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "User signed up successfully",
-		"name":    req.Name,
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	var existingUser models.Admin
+	if err := dataprovider.DB.
+		Where("user_name = ? OR email = ?", req.UserName, req.Email).
+		First(&existingUser).Error; err == nil {
+		// Found a record
+		c.JSON(http.StatusConflict, gin.H{"error": "username, or email already exists."})
+		return
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// Some other DB error
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	err = dataprovider.CreateAdmin(&models.Admin{
+		UserName:  req.UserName,
+		Password:  string(hashedPassword),
+		Email:     req.Email,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Phone:     req.Phone,
+		DOB:       req.DoB,
 	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create admin"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Admin created successfully"})
+
 }
 
 // GET /user/homepage/:id
@@ -129,4 +212,38 @@ func SendOTP(c *gin.Context) {
 		"message": "OTP sent",
 		"phone":   req.Phone,
 	})
+}
+
+func CreateClass(c *gin.Context) {
+	adminId, exists := c.Get("adminId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	type CreateClassRequest struct {
+		Name  string `json:"name" binding:"required"`
+		Email string `json:"email"`
+		Phone string `json:"phone"`
+	}
+
+	var req CreateClassRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	class := models.Classes{
+		Name:  req.Name,
+		Email: req.Email,
+		Phone: req.Phone,
+		CreatedByAdminId: adminId.(uint),
+	}
+
+	if err := dataprovider.CreateClass(&class); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create class"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Class created successfully", "class_id": class.ID})
 }

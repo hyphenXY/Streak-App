@@ -14,3 +14,7 @@ func IfClassExists(classID uint) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+func CreateClass(class *models.Classes) error {
+	return DB.Create(class).Error
+}

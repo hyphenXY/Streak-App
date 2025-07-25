@@ -11,6 +11,7 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
     r.POST("/signIn", user_controller.SignIn)
     r.POST("/signUp", user_controller.SignUp)
     r.POST("/sendOTP", user_controller.SendOTP)
+    r.POST("/verifyOTP", user_controller.VerifyOTP)
     r.POST("/refreshToken", user_controller.RefreshTokenUser)
 
     // Protected routes

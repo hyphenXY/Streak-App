@@ -1,13 +1,17 @@
 package user_controller
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hyphenXY/Streak-App/internal/dataproviders"
+	dataprovider "github.com/hyphenXY/Streak-App/internal/dataproviders"
 	"github.com/hyphenXY/Streak-App/internal/models"
 	"github.com/hyphenXY/Streak-App/internal/utils"
 	"golang.org/x/crypto/bcrypt"
@@ -198,17 +202,134 @@ func SendOTP(c *gin.Context) {
 		return
 	}
 
-	// TODO: send OTP to req.Phone
+	otp, err := utils.GenerateOTP()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate OTP"})
+		return
+	}
+
+	payload := map[string]string{
+		"phone":       req.Phone,
+		"otp":         otp,
+		"gateway_key": os.Getenv("FAZPASS_GATEWAY_KEY"),
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to marshal payload"})
+		return
+	}
+
+	url := "https://api.fazpass.com/v1/otp/send"
+
+	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create HTTP request"})
+		return
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+os.Getenv("FAZPASS_MERCHANT_KEY"))
+
+	// Print all content of httpReq for debugging
+	println("HTTP Request Method:", httpReq.Method)
+	println("HTTP Request URL:", httpReq.URL.String())
+	for k, v := range httpReq.Header {
+		println("Header:", k, "=", v[0])
+	}
+	if httpReq.Body != nil {
+		bodyBytes, _ := payloadBytes, error(nil)
+		if bodyBytes == nil {
+			bodyBytes, _ = io.ReadAll(httpReq.Body)
+		}
+		println("Body:", string(bodyBytes))
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		// Print the error for debugging
+		println("Error sending OTP:", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send OTP"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		errorMsg := buf.String()
+		println("Failed to send OTP, status code:", resp.Status, "response:", errorMsg)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":        "Failed to send OTP",
+			"status_code":  resp.StatusCode,
+			"status":       resp.Status,
+			"response_msg": errorMsg,
+		})
+		return
+	}
+
+	phoneUint, err := strconv.ParseUint(req.Phone, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid phone number"})
+		return
+	}
+	err = dataprovider.StoreOTP(uint(phoneUint), otp)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store OTP"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "OTP sent",
 		"phone":   req.Phone,
 	})
 }
 
+func VerifyOTP(c *gin.Context) {
+	type VerifyRequest struct {
+		Phone string `json:"phone"`
+		OTP   string `json:"otp"`
+	}
+
+	var req VerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	phoneUint, err := strconv.ParseUint(req.Phone, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid phone number"})
+		return
+	}
+
+	isValid, err := dataprovider.VerifyOTP(uint(phoneUint), req.OTP)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify OTP"})
+		return
+	}
+	switch isValid {
+	case "Verified!":
+		c.JSON(http.StatusOK, gin.H{"message": "OTP verified successfully"})
+	case "Expired!":
+		c.JSON(http.StatusBadRequest, gin.H{"error": "OTP expired"})
+		return
+	case "Wrong!":
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "OTP not found"})
+		return
+	case "Failed!":
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "OTP verification failed"})
+		return
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": isValid})
+		return
+	}
+}
+
 func Enroll(c *gin.Context) {
 	classID := c.Param("id")
 
-	
 	classIDUint, err := strconv.ParseUint(classID, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid class ID"})

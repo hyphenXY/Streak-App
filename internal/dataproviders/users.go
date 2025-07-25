@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hyphenXY/Streak-App/internal/models"
+	"gorm.io/gorm"
 )
 
 func CreateUser(user *models.User) error {
@@ -29,4 +30,34 @@ func EnrollUser(userID uint, classID uint) error {
 	}
 	result := DB.Create(&enrollment)
 	return result.Error
+}
+
+func StoreOTP(phone uint, otp string) error {
+	otpRecord := models.OTPs{
+		Phone: phone,
+		OTP:   otp,
+	}
+	result := DB.Create(&otpRecord)
+	return result.Error
+}
+
+func VerifyOTP(phone uint, otp string) (string, error) {
+	var otpRecord models.OTPs
+	err := DB.Where("phone = ? AND otp = ?", phone, otp).First(&otpRecord).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "Wrong!", nil // OTP not found
+		}
+		return "Failed!", err // Other error
+	}
+
+	// Check if OTP was created within 10 minutes
+	if time.Since(otpRecord.CreatedAt) > 10*time.Minute {
+		return "Expired!", nil // OTP expired
+	}
+
+	// Optionally, you can delete the OTP after verification
+	DB.Delete(&otpRecord)
+
+	return "Verified!", nil // OTP verified successfully
 }
