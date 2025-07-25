@@ -208,11 +208,22 @@ func SendOTP(c *gin.Context) {
 func Enroll(c *gin.Context) {
 	classID := c.Param("id")
 
+	
 	classIDUint, err := strconv.ParseUint(classID, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid class ID"})
 		return
 	}
+	ifClassExists, err := dataprovider.IfClassExists(uint(classIDUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check class existence"})
+		return
+	}
+	if !ifClassExists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
+		return
+	}
+
 	// Log the enrollment attempt
 
 	userIDVal, exists := c.Get("userId")

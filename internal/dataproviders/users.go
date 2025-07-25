@@ -7,8 +7,6 @@ import (
 	"github.com/hyphenXY/Streak-App/internal/models"
 )
 
-// var DB *gorm.DB
-
 func CreateUser(user *models.User) error {
 	result := DB.Create(user)
 	return result.Error
