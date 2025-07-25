@@ -10,7 +10,8 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 	r.POST("/signIn", admin_controller.SignIn)
 	r.POST("/register", admin_controller.Register)
 	r.POST("/sendOTP", admin_controller.SendOTP)
-		protected := r.Group("")
+	
+	protected := r.Group("")
 	protected.Use(middlewares.AuthAdminMiddleware())
 	{
 		protected.GET("/homepage/:id", admin_controller.Homepage)

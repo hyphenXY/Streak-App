@@ -2,7 +2,9 @@ package user_controller
 
 import (
 	"errors"
+	// "fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -42,8 +44,8 @@ func SignIn(c *gin.Context) {
 	}
 
 	accessToken, err := utils.GenerateJWT(map[string]any{
-		"user_id": user.ID,
-		"role":    "user",
+		"userId": user.ID,
+		"role":   "user",
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create token"})
@@ -201,5 +203,48 @@ func SendOTP(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "OTP sent",
 		"phone":   req.Phone,
+	})
+}
+
+func Enroll(c *gin.Context) {
+	classID := c.Param("id")
+
+	classIDUint, err := strconv.ParseUint(classID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid class ID"})
+		return
+	}
+	// Log the enrollment attempt
+
+	userIDVal, exists := c.Get("userId")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "user_id not found in context"})
+        return
+    }
+
+    userID, ok := userIDVal.(string)
+    if !ok {
+        // if your middleware stored it as float64 or string, convert accordingly
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user_id type in context"})
+        return
+    }
+
+	userIDUint, err := strconv.ParseUint(userID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user_id type in context"})
+		return
+	}
+
+	err = dataprovider.EnrollUser(uint(userIDUint), uint(classIDUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to enroll user"})
+		return
+	}
+
+	// TODO: enroll req.UserID in classID
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "User enrolled",
+		"user_id":  userID,
+		"class_id": classID,
 	})
 }

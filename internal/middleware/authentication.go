@@ -33,7 +33,7 @@ func AuthUserMiddleware() gin.HandlerFunc {
         }
 
         // Token valid
-        c.Set("user_id", claims["user_id"])
+        c.Set("userId", claims["user_id"])
         c.Next()
     }
 }

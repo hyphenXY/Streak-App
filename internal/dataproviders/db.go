@@ -37,7 +37,8 @@ func InitDB() error {
         &models.Admin{},
         &models.Root{},
         &models.Attendance{},
-        &models.User_Admins{},
+        &models.User_Classes{},
+        &models.Classes{},
     )
     if err != nil {
         return fmt.Errorf("auto migration failed: %w", err)

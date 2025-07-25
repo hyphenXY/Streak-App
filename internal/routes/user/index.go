@@ -20,5 +20,6 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
         protected.POST("/markAttendance/:id", user_controller.MarkAttendance)
         protected.GET("/profile/:id", user_controller.Profile)
         protected.PATCH("/profile/:id", user_controller.UpdateProfile)
+        protected.POST("/enroll/:id", user_controller.Enroll)
     }
 }

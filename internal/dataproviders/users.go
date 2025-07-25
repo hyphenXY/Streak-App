@@ -23,3 +23,12 @@ func UpdateUserRefreshToken(userID uint, refreshToken string, refreshTokenExpiry
 		})
 	return result.Error
 }
+
+func EnrollUser(userID uint, classID uint) error {
+	enrollment := models.User_Classes{
+		UserID:  userID,
+		ClassID: classID,
+	}
+	result := DB.Create(&enrollment)
+	return result.Error
+}
