@@ -252,3 +252,44 @@ func Enroll(c *gin.Context) {
 		"class_id": classID,
 	})
 }
+
+func RefreshTokenUser(c *gin.Context) {
+	type RefreshRequest struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+
+	var req RefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+		return
+	}
+
+	// 🔍 Look up user with this refresh token
+	var user models.User
+	if err := dataprovider.DB.
+		Where("refresh_token = ?", req.RefreshToken).
+		First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
+
+	// ⏳ Check expiry
+	if time.Now().After(*user.RefreshTokenExpiry) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token expired"})
+		return
+	}
+
+	// ✅ Generate new access token
+	accessToken, err := utils.GenerateJWT(map[string]any{
+		"user_id": user.ID,
+		"role":    "user",
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create access token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": accessToken,
+	})
+}
