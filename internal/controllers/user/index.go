@@ -2,7 +2,6 @@ package user_controller
 
 import (
 	"errors"
-	// "fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -217,25 +216,19 @@ func Enroll(c *gin.Context) {
 	// Log the enrollment attempt
 
 	userIDVal, exists := c.Get("userId")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "user_id not found in context"})
-        return
-    }
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user_id not found in context"})
+		return
+	}
 
-    userID, ok := userIDVal.(string)
-    if !ok {
-        // if your middleware stored it as float64 or string, convert accordingly
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user_id type in context"})
-        return
-    }
-
-	userIDUint, err := strconv.ParseUint(userID, 10, 64)
-	if err != nil {
+	userID, ok := userIDVal.(float64)
+	if !ok {
+		// if your middleware stored it as float64 or string, convert accordingly
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user_id type in context"})
 		return
 	}
 
-	err = dataprovider.EnrollUser(uint(userIDUint), uint(classIDUint))
+	err = dataprovider.EnrollUser(uint(userID), uint(classIDUint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to enroll user"})
 		return
