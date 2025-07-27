@@ -43,7 +43,7 @@ func StoreOTP(phone uint, otp string) error {
 
 func VerifyOTP(phone uint, otp string) (string, error) {
 	var otpRecord models.OTPs
-	err := DB.Where("phone = ? AND otp = ?", phone, otp).First(&otpRecord).Error
+	err := DB.Where("phone = ? AND otp = ?", phone, otp).Last(&otpRecord).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return "Wrong!", nil // OTP not found
@@ -60,4 +60,8 @@ func VerifyOTP(phone uint, otp string) (string, error) {
 	DB.Delete(&otpRecord)
 
 	return "Verified!", nil // OTP verified successfully
+}
+
+func IfAlreadyEnrolled(userID uint, classID uint, enrollment *models.User_Classes) error {
+	return DB.Where("user_id = ? AND class_id = ?", userID, classID).First(enrollment).Error
 }

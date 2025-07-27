@@ -1,28 +1,33 @@
 package main
 
 import (
-	"fmt"
-	"log"
+    "fmt"
+    "log"
+    "os"
 
-	dataprovider "github.com/hyphenXY/Streak-App/internal/dataproviders"
-	"github.com/hyphenXY/Streak-App/internal/routes"
-	"github.com/joho/godotenv"
+    dataprovider "github.com/hyphenXY/Streak-App/internal/dataproviders"
+    "github.com/hyphenXY/Streak-App/internal/routes"
+    "github.com/joho/godotenv"
 )
 
 func main() {
-	// Load .env file
-	_ = godotenv.Load()
+    // Load .env file (only used locally)
+    _ = godotenv.Load()
 
-	// Initialize DB (connect + migrate)
-	if err := dataprovider.InitDB(); err != nil {
-		log.Fatalf("❌ Could not initialize database: %v", err)
-	}
+    // Initialize DB (connect + migrate)
+    if err := dataprovider.InitDB(); err != nil {
+        log.Fatalf("❌ Could not initialize database: %v", err)
+    }
 
-	// Start the Gin router
-	r := routes.SetupRouter()
+    // Start the Gin router
+    r := routes.SetupRouter()
 
-	fmt.Println("🚀 Server running on http://localhost:8080")
-	if err := r.Run(":8080"); err != nil {
-		log.Fatalf("❌ Server failed: %v", err)
-	}
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "10000" // Render's default fallback port
+    }
+    fmt.Printf("🚀 Server running on http://0.0.0.0:%s\n", port)
+    if err := r.Run(":" + port); err != nil {
+        log.Fatalf("❌ Server failed: %v", err)
+    }
 }

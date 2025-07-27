@@ -147,22 +147,91 @@ func Homepage(c *gin.Context) {
 
 // POST /user/markAttendance/:id
 func MarkAttendance(c *gin.Context) {
-	userID := c.Param("id")
-	// TODO: mark attendance for userID
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Attendance marked",
-		"user_id": userID,
-	})
+	classID := c.Param("id")
+
+	classIDUint, err := strconv.ParseUint(classID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid class ID"})
+		return
+	}
+
+	ifClassExists, err := dataprovider.IfClassExists(uint(classIDUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check class existence"})
+		return
+	}
+	if !ifClassExists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
+		return
+	}
+
+	// check if user is enrolled in the class
+	userIDVal, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	if err := dataprovider.IfAlreadyEnrolled(uint(userIDVal.(float64)), uint(classIDUint), &models.User_Classes{}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check enrollment status"})
+		return
+	}
+
+	err = dataprovider.MarkAttendanceByUser(uint(classIDUint), uint(userIDVal.(float64)))
+	if err != nil {
+		// Check if attendance is already marked
+		if err.Error() == "already marked" {
+			c.JSON(http.StatusConflict, gin.H{"error": "Attendance already marked"})
+			return
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Attendance record not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark attendance"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Attendance marked", "class_id": classID})
 }
 
 // GET /user/profile/:id
 func Profile(c *gin.Context) {
 	userID := c.Param("id")
-	// TODO: fetch user profile from DB
+
+	userIdVal, err := strconv.ParseFloat(userID, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// userIdval, err := c.Get("userId")
+	// if !err {
+	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+	// 	return
+	// }
+
+	// if userIdval.(float64) != strconv.ParseFloat(userID, 64) {
+	// 	c.JSON(http.StatusForbidden, gin.H{"error": "You can only view your own profile"})
+	// 	return
+	// }
+
+	var user models.User
+	if err := dataprovider.DB.Where("id = ?", userIdVal).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user profile"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"user_id": userID,
-		"name":    "John Doe",
-		"email":   "john@example.com",
+		"id":    user.ID,
+		"name":  user.FirstName + " " + user.LastName,
+		"email": user.Email,
+		"phone": user.Phone,
+		"dob":   user.DOB,
 	})
 }
 
@@ -209,7 +278,7 @@ func SendOTP(c *gin.Context) {
 	}
 
 	payload := map[string]string{
-		"phone":       req.Phone,
+		"phone":       "+91" + req.Phone,
 		"otp":         otp,
 		"gateway_key": os.Getenv("FAZPASS_GATEWAY_KEY"),
 	}
@@ -312,6 +381,7 @@ func VerifyOTP(c *gin.Context) {
 	switch isValid {
 	case "Verified!":
 		c.JSON(http.StatusOK, gin.H{"message": "OTP verified successfully"})
+		return
 	case "Expired!":
 		c.JSON(http.StatusBadRequest, gin.H{"error": "OTP expired"})
 		return
@@ -357,6 +427,17 @@ func Enroll(c *gin.Context) {
 	if !ok {
 		// if your middleware stored it as float64 or string, convert accordingly
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user_id type in context"})
+		return
+	}
+
+	// check if user is already enrolled
+	var existingEnrollment models.User_Classes
+	if err := dataprovider.IfAlreadyEnrolled(uint(userID), uint(classIDUint), &existingEnrollment); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check enrollment status"})
+		return
+	}
+	if existingEnrollment.ID != 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "User already enrolled"})
 		return
 	}
 
@@ -412,5 +493,44 @@ func RefreshTokenUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"access_token": accessToken,
+	})
+}
+
+func ClassDetails(c *gin.Context) {
+	type ClassDetailsRequest struct {
+		ClassID uint `json:"class_id" binding:"required"`
+	}
+
+	var req ClassDetailsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	var class models.Classes
+	if err := dataprovider.DB.Where("id = ?", req.ClassID).First(&class).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch class details"})
+		return
+	}
+
+	// take out admin name form id
+	var admin models.Admin
+	if err := dataprovider.AdminNameById(class.CreatedByAdminId, &admin); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch admin details"})
+		return
+	}
+	adminName := admin.FirstName + " " + admin.LastName
+
+	c.JSON(http.StatusOK, gin.H{
+		"class_id":    class.ID,
+		"class_name":  class.Name,
+		"description": class.Name,
+		"class_email": class.Email,
+		"class_phone": class.Phone,
+		"class_owner": adminName,
 	})
 }

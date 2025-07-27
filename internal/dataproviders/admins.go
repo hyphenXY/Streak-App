@@ -19,3 +19,7 @@ func UpdateAdminRefreshToken(adminID uint, refreshToken string, refreshTokenExpi
 		})
 	return result.Error
 }
+
+func AdminNameById(adminID uint, admin *models.Admin) error {
+	return DB.Where("id = ?", adminID).First(admin).Error
+}
