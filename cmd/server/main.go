@@ -12,7 +12,7 @@ import (
 
 func main() {
     // Load .env file (only used locally)
-    _ = godotenv.Load()
+    _ = godotenv.Load("/etc/secrets/secrets_file.env")
 
     // Initialize DB (connect + migrate)
     if err := dataprovider.InitDB(); err != nil {
