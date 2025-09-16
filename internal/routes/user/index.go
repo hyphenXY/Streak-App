@@ -2,27 +2,29 @@ package user_routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/hyphenXY/Streak-App/internal/controllers/user"
-	"github.com/hyphenXY/Streak-App/internal/middleware"
+	user_controller "github.com/hyphenXY/Streak-App/internal/controllers/user"
+	middlewares "github.com/hyphenXY/Streak-App/internal/middleware"
 )
 
 func RegisterUserRoutes(r *gin.RouterGroup) {
-    // Public routes
-    r.POST("/signIn", user_controller.SignIn)
-    r.POST("/signUp", user_controller.SignUp)
-    r.POST("/sendOTP", user_controller.SendOTP)
-    r.POST("/verifyOTP", user_controller.VerifyOTP)
-    r.POST("/refreshToken", user_controller.RefreshTokenUser)
+	// Public routes
+	r.POST("/signIn", user_controller.SignIn)
+	r.POST("/signUp", user_controller.SignUp)
+	r.POST("/sendOTP", user_controller.SendOTP)
+	r.POST("/verifyOTP", user_controller.VerifyOTP)
+	r.POST("/refreshToken", user_controller.RefreshTokenUser)
 
-    // Protected routes
-    protected := r.Group("")
-    protected.Use(middlewares.AuthUserMiddleware())
-    {
-        protected.GET("/homepage/:id", user_controller.Homepage)
-        protected.POST("/markAttendance/:id", user_controller.MarkAttendance)
-        protected.GET("/profile/:id", user_controller.Profile)
-        protected.PATCH("/profile/:id", user_controller.UpdateProfile)
-        protected.POST("/enroll/:id", user_controller.Enroll)
-        protected.POST("/classDetails", user_controller.ClassDetails)
-    }
+	// Protected routes
+	protected := r.Group("")
+	protected.Use(middlewares.AuthUserMiddleware())
+	{
+		protected.GET("/homepage/:id", user_controller.Homepage)
+		protected.POST("/markAttendance/:id", user_controller.MarkAttendance)
+		protected.GET("/profile/:id", user_controller.Profile)
+		protected.PATCH("/profile/:id", user_controller.UpdateProfile)
+		protected.POST("/enroll/:id", user_controller.Enroll)
+		protected.POST("/classDetails", user_controller.ClassDetails)
+        protected.GET("/myClasses/:id", user_controller.QuickSummary)
+        protected.GET("/calendar", user_controller.Calendar)
+	}
 }

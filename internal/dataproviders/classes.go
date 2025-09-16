@@ -28,7 +28,7 @@ func MarkAttendanceByUser(classID uint, userID uint) error {
 	if err != nil {
 		return err
 	}
-	if attendance.Status == "present" {
+	if attendance.Status == "present" || attendance.Status == "absent" {
 		return errors.New("already marked")
 
 	}
