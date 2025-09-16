@@ -247,3 +247,18 @@ func CreateClass(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Class created successfully", "class_id": class.ID})
 }
+
+func StudentsList(c *gin.Context) {
+	classId, exists := c.Get("classId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	students, err := dataprovider.GetStudentsByClassID(classId.(uint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch students"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"students": students})
+}

@@ -35,3 +35,14 @@ func MarkAttendanceByUser(classID uint, userID uint) error {
 
 	return DB.Model(&models.Attendance{}).Where("id = ?", attendance.ID).Update("present", true).Error
 }
+
+func GetStudentsByClassID(classID uint) ([]models.User, error) {
+	var students []models.User
+	err := DB.Joins("JOIN enrollments ON enrollments.user_id = users.id").
+		Where("enrollments.class_id = ?", classID).
+		Find(&students).Error
+	if err != nil {
+		return nil, err
+	}
+	return students, nil
+}

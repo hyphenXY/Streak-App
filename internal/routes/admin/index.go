@@ -20,5 +20,6 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 		protected.GET("/profile/:id", admin_controller.Profile)
 		protected.PATCH("/profile/:id", admin_controller.UpdateProfile)
 		protected.POST("/createClass", admin_controller.CreateClass)
+		protected.GET("/studentsList", admin_controller.StudentsList)
 	}
 }
