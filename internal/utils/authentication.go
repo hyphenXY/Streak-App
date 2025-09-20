@@ -51,7 +51,7 @@ func ValidateJWT(tokenString string, requiredRole string) (map[string]interface{
 
 func GenerateJWT(claimsMap map[string]interface{}) (string, error) {
 	claims := jwt.MapClaims{
-		"exp": time.Now().Add(time.Hour * 24).Unix(), // expires in 24h
+		"exp": time.Now().Add(time.Minute * 15).Unix(), // expires in 15m
 		"iat": time.Now().Unix(),
 	}
 	for k, v := range claimsMap {

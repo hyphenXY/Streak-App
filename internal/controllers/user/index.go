@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,7 +29,7 @@ func SignIn(c *gin.Context) {
 
 	var req SignInRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request payload"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
@@ -67,10 +68,21 @@ func SignIn(c *gin.Context) {
 		return
 	}
 
+	// Set refresh token as HttpOnly cookie
+	secure := gin.Mode() == gin.ReleaseMode
+	c.SetCookie(
+		"refresh_token",
+		refreshToken,
+		int((30 * 24 * time.Hour).Seconds()), // expiry in seconds
+		"/",
+		"",     // domain (empty = current domain)
+		secure, // secure (true = HTTPS only)
+		true,   // httpOnly
+	)
+
 	c.JSON(http.StatusOK, gin.H{
-		"message":       "Sign in successful",
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
+		"message":      "Sign in successful",
+		"access_token": accessToken,
 		"user": gin.H{
 			"id":        user.ID,
 			"username":  user.UserName,
@@ -87,7 +99,7 @@ func SignUp(c *gin.Context) {
 	type SignUpRequest struct {
 		UserName  string `json:"userName" binding:"required"`
 		Password  string `json:"password" binding:"required"`
-		Email     string `json:"email" binding:"required"`
+		Email     string `json:"email" binding:"required,email"`
 		FirstName string `json:"firstName" binding:"required"`
 		LastName  string `json:"lastName" binding:"required"`
 		Phone     string `json:"phone" binding:"required"`
@@ -98,6 +110,9 @@ func SignUp(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
+
+	req.UserName = strings.ToLower(strings.TrimSpace(req.UserName))
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -117,21 +132,36 @@ func SignUp(c *gin.Context) {
 		return
 	}
 
-	err = dataprovider.CreateUser(&models.User{
+	dob, err := time.Parse("2006-01-02", req.DoB)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format. Use YYYY-MM-DD"})
+		return
+	}
+
+	newUser := &models.User{
 		UserName:  req.UserName,
 		Password:  string(hashedPassword),
 		Email:     req.Email,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		Phone:     req.Phone,
-		DOB:       req.DoB,
-	})
-	if err != nil {
+		DOB:       dob, // parsed time
+	}
+
+	if err := dataprovider.CreateUser(newUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
+	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully",
+		"user": gin.H{
+			"username":  req.UserName,
+			"email":     req.Email,
+			"firstName": req.FirstName,
+			"lastName":  req.LastName,
+			"phone":     req.Phone,
+		},
+	})
 
 }
 
@@ -476,48 +506,61 @@ func Enroll(c *gin.Context) {
 }
 
 func RefreshTokenUser(c *gin.Context) {
-	type RefreshRequest struct {
-		RefreshToken string `json:"refresh_token" binding:"required"`
-	}
+    // 1️⃣ Extract refresh token from cookie
+    refreshToken, err := c.Cookie("refresh_token")
+    if err != nil || refreshToken == "" {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token missing"})
+        return
+    }
 
-	var req RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
-		return
-	}
+    // 2️⃣ Find user with this refresh token
+    var user models.User
+    if err := dataprovider.DB.
+        Where("refresh_token = ?", refreshToken).
+        First(&user).Error; err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+        return
+    }
 
-	// 🔍 Look up user with this refresh token
-	var user models.User
-	if err := dataprovider.DB.
-		Where("refresh_token = ?", req.RefreshToken).
-		First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
-		return
-	}
+    // 3️⃣ Check expiry
+    if time.Now().After(*user.RefreshTokenExpiry) {
+        // clear cookie
+        c.SetCookie("refresh_token", "", -1, "/", "", true, true)
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token expired"})
+        return
+    }
 
-	// ⏳ Check expiry
-	if time.Now().After(*user.RefreshTokenExpiry) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token expired"})
-		return
-	}
+    // 4️⃣ Generate new access token
+    accessToken, err := utils.GenerateJWT(map[string]any{
+        "user_id": user.ID,
+        "role":    "user",
+    })
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create access token"})
+        return
+    }
 
-	// ✅ Generate new access token
-	accessToken, err := utils.GenerateJWT(map[string]any{
-		"user_id": user.ID,
-		"role":    "user",
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create access token"})
-		return
-	}
+    // 5️⃣ Rotate refresh token
+    newRefreshToken, err := utils.GenerateRefreshToken()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
+        return
+    }
 
-	c.JSON(http.StatusOK, gin.H{
-		"access_token": accessToken,
-	})
+    expiry := time.Now().Add(30 * 24 * time.Hour)
+    if err := dataprovider.UpdateUserRefreshToken(user.ID, newRefreshToken, expiry); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update refresh token"})
+        return
+    }
+
+    c.SetCookie("refresh_token", newRefreshToken, int((30*24*time.Hour).Seconds()), "/", "", true, true)
+
+    c.JSON(http.StatusOK, gin.H{
+        "access_token": accessToken,
+    })
 }
 
 func ClassDetails(c *gin.Context) {
-	
 
 	c.JSON(http.StatusOK, gin.H{"class": "class"})
 }
@@ -623,7 +666,7 @@ func QuickSummary(c *gin.Context) {
 
 	// Add summary to response
 	c.Set("summary", gin.H{
-		"best_streak":           bestStreak,
+		"best_streak": bestStreak,
 		"current_week": gin.H{
 			"present":   presentCount,
 			"absent":    absentCount,
