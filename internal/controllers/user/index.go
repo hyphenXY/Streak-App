@@ -506,58 +506,58 @@ func Enroll(c *gin.Context) {
 }
 
 func RefreshTokenUser(c *gin.Context) {
-    // 1️⃣ Extract refresh token from cookie
-    refreshToken, err := c.Cookie("refresh_token")
-    if err != nil || refreshToken == "" {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token missing"})
-        return
-    }
+	// 1️⃣ Extract refresh token from cookie
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil || refreshToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token missing"})
+		return
+	}
 
-    // 2️⃣ Find user with this refresh token
-    var user models.User
-    if err := dataprovider.DB.
-        Where("refresh_token = ?", refreshToken).
-        First(&user).Error; err != nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
-        return
-    }
+	// 2️⃣ Find user with this refresh token
+	var user models.User
+	if err := dataprovider.DB.
+		Where("refresh_token = ?", refreshToken).
+		First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
 
-    // 3️⃣ Check expiry
-    if time.Now().After(*user.RefreshTokenExpiry) {
-        // clear cookie
-        c.SetCookie("refresh_token", "", -1, "/", "", true, true)
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token expired"})
-        return
-    }
+	// 3️⃣ Check expiry
+	if time.Now().After(*user.RefreshTokenExpiry) {
+		// clear cookie
+		c.SetCookie("refresh_token", "", -1, "/", "", true, true)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token expired"})
+		return
+	}
 
-    // 4️⃣ Generate new access token
-    accessToken, err := utils.GenerateJWT(map[string]any{
-        "user_id": user.ID,
-        "role":    "user",
-    })
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create access token"})
-        return
-    }
+	// 4️⃣ Generate new access token
+	accessToken, err := utils.GenerateJWT(map[string]any{
+		"user_id": user.ID,
+		"role":    "user",
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create access token"})
+		return
+	}
 
-    // 5️⃣ Rotate refresh token
-    newRefreshToken, err := utils.GenerateRefreshToken()
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
-        return
-    }
+	// 5️⃣ Rotate refresh token
+	newRefreshToken, err := utils.GenerateRefreshToken()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
+		return
+	}
 
-    expiry := time.Now().Add(30 * 24 * time.Hour)
-    if err := dataprovider.UpdateUserRefreshToken(user.ID, newRefreshToken, expiry); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update refresh token"})
-        return
-    }
+	expiry := time.Now().Add(30 * 24 * time.Hour)
+	if err := dataprovider.UpdateUserRefreshToken(user.ID, newRefreshToken, expiry); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update refresh token"})
+		return
+	}
 
-    c.SetCookie("refresh_token", newRefreshToken, int((30*24*time.Hour).Seconds()), "/", "", true, true)
+	c.SetCookie("refresh_token", newRefreshToken, int((30 * 24 * time.Hour).Seconds()), "/", "", true, true)
 
-    c.JSON(http.StatusOK, gin.H{
-        "access_token": accessToken,
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": accessToken,
+	})
 }
 
 func ClassDetails(c *gin.Context) {

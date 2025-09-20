@@ -24,7 +24,7 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
 		protected.PATCH("/profile/:id", user_controller.UpdateProfile)
 		protected.POST("/enroll/:id", user_controller.Enroll)
 		protected.POST("/classDetails", user_controller.ClassDetails)
-        protected.GET("/myClasses/:id", user_controller.QuickSummary)
-        protected.GET("/calendar", user_controller.Calendar)
+		protected.GET("/myClasses/:id", user_controller.QuickSummary)
+		protected.GET("/calendar", user_controller.Calendar)
 	}
 }

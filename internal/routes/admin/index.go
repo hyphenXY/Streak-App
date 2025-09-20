@@ -8,8 +8,10 @@ import (
 
 func RegisterAdminRoutes(r *gin.RouterGroup) {
 	r.POST("/signIn", admin_controller.SignIn)
-	r.POST("/register", admin_controller.Register)
+	r.POST("/signUp", admin_controller.SignUp)
 	r.POST("/sendOTP", admin_controller.SendOTP)
+	r.POST("/verifyOTP", admin_controller.VerifyOTP)
+	r.POST("/refreshToken", admin_controller.RefreshTokenUser)
 	
 	protected := r.Group("")
 	protected.Use(middlewares.AuthAdminMiddleware())
