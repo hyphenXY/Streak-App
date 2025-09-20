@@ -20,6 +20,11 @@ func InitDB() error {
     port := os.Getenv("DB_PORT")
     dbname := os.Getenv("DB_NAME")
 
+    // Check for missing environment variables
+    if user == "" || password == "" || host == "" || port == "" || dbname == "" {
+        return fmt.Errorf("missing required database environment variables: user=%s, password=%s, host=%s, port=%s, dbname=%s", user, password, host, port, dbname)
+    }
+
     dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
         user, password, host, port, dbname)
 
