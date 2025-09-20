@@ -9,6 +9,7 @@ import (
 func RegisterRootRoutes(r *gin.RouterGroup) {
 	r.POST("/signIn", root_controller.SignIn)
 	r.POST("/register", root_controller.Register)
+	r.GET("/health-check", root_controller.HealthCheck)
 
 	protected := r.Group("")
 	protected.Use(middlewares.AuthRootMiddleware())

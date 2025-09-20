@@ -101,3 +101,10 @@ func DeleteAdmin(c *gin.Context) {
 		"user_id": userID,
 	})
 }
+
+func HealthCheck(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "API is healthy",
+	})
+}
