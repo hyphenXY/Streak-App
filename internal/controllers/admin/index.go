@@ -467,7 +467,7 @@ func CreateClass(c *gin.Context) {
 		Name:             req.Name,
 		Email:            req.Email,
 		Phone:            req.Phone,
-		CreatedByAdminId: adminId.(uint),
+		CreatedByAdminId: uint(adminId.(float64)),
 	}
 
 	if err := dataprovider.CreateClass(&class); err != nil {
