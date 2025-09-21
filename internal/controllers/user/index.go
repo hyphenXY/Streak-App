@@ -256,10 +256,6 @@ func MarkAttendance(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Attendance already marked"})
 			return
 		}
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Attendance record not found"})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark attendance"})
 		return
 	}

@@ -25,15 +25,19 @@ func MarkAttendanceByUser(classID uint, userID uint) error {
 	err := DB.Model(&models.Attendance{}).
 		Where("class_id = ? AND marked_by_id = ? AND marked_by_role = ? AND DATE(created_at) = CURRENT_DATE", classID, userID, "user").
 		First(&attendance).Error
+
+	if errors.Is(err, DB.Error) {
+		attendance = models.Attendance{
+			ClassID:       classID,
+			MarkedById:    userID,
+			MarkedByRole:  "user",
+		}
+		return DB.Create(&attendance).Error
+	}
 	if err != nil {
 		return err
 	}
-	if attendance.Status == "present" || attendance.Status == "absent" {
-		return errors.New("already marked")
-
-	}
-
-	return DB.Model(&models.Attendance{}).Where("id = ?", attendance.ID).Update("present", true).Error
+	return errors.New("already marked")
 }
 
 func GetStudentsByClassID(classID uint) ([]models.User, error) {
