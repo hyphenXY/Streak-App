@@ -34,8 +34,12 @@ func EnrollUser(userID uint, classID uint) error {
 
 func StoreOTP(phone uint, otp string) error {
 	otpRecord := models.OTPs{
-		Phone: phone,
-		OTP:   otp,
+		Phone:      phone,
+		OTP:        otp,
+		Expiry:     time.Now().Add(10 * time.Minute),
+		IsVerified: false,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
 	}
 	result := DB.Create(&otpRecord)
 	return result.Error
@@ -57,11 +61,30 @@ func VerifyOTP(phone uint, otp string) (string, error) {
 	}
 
 	// Optionally, you can delete the OTP after verification
-	DB.Delete(&otpRecord)
+	// DB.Delete(&otpRecord)
 
 	return "Verified!", nil // OTP verified successfully
 }
 
 func IfAlreadyEnrolled(userID uint, classID uint, enrollment *models.User_Classes) error {
 	return DB.Where("user_id = ? AND class_id = ?", userID, classID).First(enrollment).Error
+}
+
+func IsPhoneVerified(phone uint) (bool, error) {
+	var otp models.OTPs
+	err := DB.Where("phone = ? AND is_verified = ?", phone, true).First(&otp).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil // Phone not verified
+		}
+		return false, err // Other error
+	}
+	return true, nil
+}
+
+func MarkPhoneVerified(phone uint) error {
+	result := DB.Model(&models.User{}).
+		Where("phone = ?", phone).
+		Update("is_verified", true)
+	return result.Error
 }
