@@ -10,7 +10,6 @@ type User struct {
 	Phone              string     `gorm:"size:10;"`
 	UserName           string     `gorm:"size:50;"`
 	Password           string     `gorm:""`
-	Location           string     `gorm:"size:100;"`
 	DOB                time.Time  `gorm:""`
 	RefreshToken       *string    `gorm:"size:255"`
 	RefreshTokenExpiry *time.Time `gorm:""`

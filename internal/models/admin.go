@@ -10,9 +10,7 @@ type Admin struct {
 	Phone              string    `gorm:"size:10;"`
 	UserName           string    `gorm:"size:50;"`
 	Password           string    `gorm:""`
-	Location           string    `gorm:"size:100;"`
 	DOB                time.Time `gorm:""`
-	Status             string    `gorm:"type:ENUM('approved', 'rejected', 'pending');default:'pending'"`
 	RefreshToken       string    `gorm:"size:255"`
 	RefreshTokenExpiry time.Time `gorm:""`
 	CreatedAt          time.Time

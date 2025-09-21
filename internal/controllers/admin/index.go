@@ -105,10 +105,26 @@ func SignUp(c *gin.Context) {
 		LastName  string `json:"lastName" binding:"required"`
 		Phone     string `json:"phone" binding:"required"`
 		DoB       string `json:"dob" binding:"required"`
+		OTP       string `json:"otp" binding:"required"`
 	}
 	var req SignUpRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	phoneUint, err := strconv.ParseUint(req.Phone, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid phone number"})
+		return
+	}
+	isValid, err := dataprovider.IsPhoneVerified(uint(phoneUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify phone"})
+		return
+	}
+	if !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Phone not verified"})
 		return
 	}
 
@@ -351,6 +367,11 @@ func VerifyOTP(c *gin.Context) {
 	}
 	switch isValid {
 	case "Verified!":
+		err := dataprovider.MarkPhoneVerified(uint(phoneUint))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark phone as verified"})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"message": "OTP verified successfully"})
 		return
 	case "Expired!":
@@ -443,9 +464,9 @@ func CreateClass(c *gin.Context) {
 	}
 
 	class := models.Classes{
-		Name:  req.Name,
-		Email: req.Email,
-		Phone: req.Phone,
+		Name:             req.Name,
+		Email:            req.Email,
+		Phone:            req.Phone,
 		CreatedByAdminId: adminId.(uint),
 	}
 
