@@ -43,6 +43,37 @@ func MarkAttendanceByUser(classID uint, userID uint) error {
 	return errors.New("already marked")
 }
 
+func MarkAttendanceByAdmin(classID uint, userID uint) error {
+	// check in attendances table if record exists
+	var attendance models.Attendance
+	err := DB.Model(&models.Attendance{}).
+		Where("class_id = ? AND marked_by_id = ? AND marked_by_role = ? AND DATE(created_at) = CURRENT_DATE", classID, userID, "admin").
+		First(&attendance).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		attendance = models.Attendance{
+			ClassID:      classID,
+			MarkedById:   userID,
+			MarkedByRole: "admin",
+			Status:       "present",
+		}
+		return DB.Create(&attendance).Error
+	}
+	if err != nil {
+		return err
+	}
+	return errors.New("already marked")
+}
+
+func IsUserAdmin(userID uint, classID uint) (bool, error) {
+	var count int64
+	err := DB.Model(&models.Classes{}).Where("created_by_admin_id = ? AND id = ?", userID, classID).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func GetStudentsByClassID(classID uint) ([]models.User, error) {
 	var students []models.User
 	err := DB.Joins("JOIN enrollments ON enrollments.user_id = users.id").

@@ -203,12 +203,51 @@ func PersonalHomepage(c *gin.Context) {
 
 // POST /user/markAttendance/:id
 func MarkAttendance(c *gin.Context) {
-	userID := c.Param("id")
-	// TODO: mark attendance for userID
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Attendance marked",
-		"user_id": userID,
-	})
+	ClassID := c.Param("id")
+
+	ClassIDUint, err := strconv.ParseUint(ClassID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid class ID"})
+		return
+	}
+
+	isClassExists, err := dataprovider.IfClassExists(uint(ClassIDUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check class"})
+		return
+	}
+
+	if !isClassExists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
+		return
+	}
+	
+	
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	isUserAdmin, err := dataprovider.IsUserAdmin(uint(userId.(float64)), uint(ClassIDUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user role"})
+		return
+	}
+	if !isUserAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin privileges required"})
+		return
+	}
+
+	err = dataprovider.MarkAttendanceByAdmin(uint(ClassIDUint), uint(userId.(float64)))
+	if err != nil {
+		if err.Error() == "already marked" {
+			c.JSON(http.StatusConflict, gin.H{"error": "Attendance already marked"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Attendance marked", "class_id": ClassIDUint})
 }
 
 // GET /user/profile/:id
