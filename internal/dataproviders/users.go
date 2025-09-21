@@ -83,7 +83,7 @@ func IsPhoneVerified(phone uint) (bool, error) {
 }
 
 func MarkPhoneVerified(phone uint) error {
-	result := DB.Model(&models.User{}).
+	result := DB.Model(&models.OTPs{}).
 		Where("phone = ?", phone).
 		Update("is_verified", true)
 	return result.Error
