@@ -66,8 +66,15 @@ func VerifyOTP(phone uint, otp string) (string, error) {
 	return "Verified!", nil // OTP verified successfully
 }
 
-func IfAlreadyEnrolled(userID uint, classID uint, enrollment *models.User_Classes) error {
-	return DB.Where("user_id = ? AND class_id = ?", userID, classID).First(enrollment).Error
+func IfAlreadyEnrolled(userID uint, classID uint, enrollment *models.User_Classes) (bool, error) {
+	err := DB.Where("user_id = ? AND class_id = ?", userID, classID).First(enrollment).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil // Not enrolled
+		}
+		return false, err // Other error
+	}
+	return true, nil // Already enrolled
 }
 
 func IsPhoneVerified(phone uint) (bool, error) {

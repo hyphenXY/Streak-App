@@ -239,8 +239,13 @@ func MarkAttendance(c *gin.Context) {
 		return
 	}
 
-	if err := dataprovider.IfAlreadyEnrolled(uint(userIDVal.(float64)), uint(classIDUint), &models.User_Classes{}); err != nil {
+	isEnrolled, err := dataprovider.IfAlreadyEnrolled(uint(userIDVal.(float64)), uint(classIDUint), &models.User_Classes{})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check enrollment status"})
+		return
+	}
+	if !isEnrolled {
+		c.JSON(http.StatusForbidden, gin.H{"error": "User not enrolled in this class"})
 		return
 	}
 
@@ -495,11 +500,12 @@ func Enroll(c *gin.Context) {
 
 	// check if user is already enrolled
 	var existingEnrollment models.User_Classes
-	if err := dataprovider.IfAlreadyEnrolled(uint(userID), uint(classID), &existingEnrollment); err != nil {
+	isEnrolled, err := dataprovider.IfAlreadyEnrolled(uint(userID), uint(classID), &existingEnrollment)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check enrollment status"})
 		return
 	}
-	if existingEnrollment.ID != 0 {
+	if isEnrolled {
 		c.JSON(http.StatusConflict, gin.H{"error": "User already enrolled"})
 		return
 	}
@@ -596,11 +602,12 @@ func QuickSummary(c *gin.Context) {
 
 	// Check if user is enrolled in the class
 	var enrollment models.User_Classes
-	if err := dataprovider.IfAlreadyEnrolled(uint(userIDUint), uint(classIDUint), &enrollment); err != nil {
+	isEnrolled, err := dataprovider.IfAlreadyEnrolled(uint(userIDUint), uint(classIDUint), &enrollment)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check enrollment status"})
 		return
 	}
-	if enrollment.ID == 0 {
+	if !isEnrolled {
 		c.JSON(http.StatusForbidden, gin.H{"error": "User not enrolled in this class"})
 		return
 	}
