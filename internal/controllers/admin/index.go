@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hyphenXY/Streak-App/internal/dataproviders"
+	dataprovider "github.com/hyphenXY/Streak-App/internal/dataproviders"
 	"github.com/hyphenXY/Streak-App/internal/models"
 	"github.com/hyphenXY/Streak-App/internal/utils"
 	"golang.org/x/crypto/bcrypt"
@@ -445,7 +445,7 @@ func RefreshTokenUser(c *gin.Context) {
 }
 
 func CreateClass(c *gin.Context) {
-	adminId, exists := c.Get("adminId")
+	adminId, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
