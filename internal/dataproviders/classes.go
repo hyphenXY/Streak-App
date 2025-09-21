@@ -3,7 +3,9 @@ package dataprovider
 import (
 	// "gorm.io/gorm"
 	"errors"
+
 	"github.com/hyphenXY/Streak-App/internal/models"
+	"gorm.io/gorm"
 )
 
 func IfClassExists(classID uint) (bool, error) {
@@ -26,11 +28,12 @@ func MarkAttendanceByUser(classID uint, userID uint) error {
 		Where("class_id = ? AND marked_by_id = ? AND marked_by_role = ? AND DATE(created_at) = CURRENT_DATE", classID, userID, "user").
 		First(&attendance).Error
 
-	if errors.Is(err, DB.Error) {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		attendance = models.Attendance{
-			ClassID:       classID,
-			MarkedById:    userID,
-			MarkedByRole:  "user",
+			ClassID:      classID,
+			MarkedById:   userID,
+			MarkedByRole: "user",
+			Status:       "present",
 		}
 		return DB.Create(&attendance).Error
 	}

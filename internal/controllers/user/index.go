@@ -256,7 +256,7 @@ func MarkAttendance(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Attendance already marked"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark attendance"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark attendance", "details": err.Error()})
 		return
 	}
 
