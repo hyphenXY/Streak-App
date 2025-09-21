@@ -407,7 +407,7 @@ func RefreshTokenUser(c *gin.Context) {
 	}
 
 	// 3️⃣ Check expiry
-	if time.Now().After(user.RefreshTokenExpiry) {
+	if time.Now().After(*user.RefreshTokenExpiry) {
 		// clear cookie
 		c.SetCookie("refresh_token", "", -1, "/", "", true, true)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token expired"})
