@@ -463,10 +463,13 @@ func CreateClass(c *gin.Context) {
 		return
 	}
 
+	classCode := utils.GenerateRandomDigits(6)
+
 	class := models.Classes{
 		Name:             req.Name,
 		Email:            req.Email,
 		Phone:            req.Phone,
+		ClassCode:        classCode,
 		CreatedByAdminId: uint(adminId.(float64)),
 	}
 
@@ -475,7 +478,7 @@ func CreateClass(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Class created successfully", "class_id": class.ID})
+	c.JSON(http.StatusCreated, gin.H{"message": "Class created successfully", "class_id": class.ID, "class_code": class.ClassCode, "name": class.Name, "email": class.Email, "phone": class.Phone})
 }
 
 func StudentsList(c *gin.Context) {

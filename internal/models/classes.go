@@ -8,6 +8,7 @@ type Classes struct {
 	Email            string `gorm:"size:100;"`
 	Phone            string `gorm:"size:10;"`
 	CreatedByAdminId uint   `gorm:"size:50;"`
+	ClassCode        string `gorm:"size:10;uniqueIndex"`
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }

@@ -46,3 +46,12 @@ func GetStudentsByClassID(classID uint) ([]models.User, error) {
 	}
 	return students, nil
 }
+
+func GetClassIDByCode(classCode string) (uint, error) {
+	var class models.Classes
+	err := DB.Where("class_code = ?", classCode).First(&class).Error
+	if err != nil {
+		return 0, err
+	}
+	return class.ID, nil
+}

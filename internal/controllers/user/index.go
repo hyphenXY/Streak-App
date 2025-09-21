@@ -470,20 +470,11 @@ func VerifyOTP(c *gin.Context) {
 }
 
 func Enroll(c *gin.Context) {
-	classID := c.Param("id")
+	classCode := c.Param("classCode")
 
-	classIDUint, err := strconv.ParseUint(classID, 10, 64)
+	classID, err := dataprovider.GetClassIDByCode(classCode)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid class ID"})
-		return
-	}
-	ifClassExists, err := dataprovider.IfClassExists(uint(classIDUint))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check class existence"})
-		return
-	}
-	if !ifClassExists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Class code not found"})
 		return
 	}
 
@@ -504,7 +495,7 @@ func Enroll(c *gin.Context) {
 
 	// check if user is already enrolled
 	var existingEnrollment models.User_Classes
-	if err := dataprovider.IfAlreadyEnrolled(uint(userID), uint(classIDUint), &existingEnrollment); err != nil {
+	if err := dataprovider.IfAlreadyEnrolled(uint(userID), uint(classID), &existingEnrollment); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check enrollment status"})
 		return
 	}
@@ -513,7 +504,7 @@ func Enroll(c *gin.Context) {
 		return
 	}
 
-	err = dataprovider.EnrollUser(uint(userID), uint(classIDUint))
+	err = dataprovider.EnrollUser(uint(userID), uint(classID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to enroll user"})
 		return
