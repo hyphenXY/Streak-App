@@ -23,3 +23,13 @@ func UpdateAdminRefreshToken(adminID uint, refreshToken string, refreshTokenExpi
 func AdminNameById(adminID uint, admin *models.Admin) error {
 	return DB.Where("id = ?", adminID).First(admin).Error
 }
+
+func RevokeAdminRefreshToken(refreshToken string) error {
+	result := DB.Model(&models.Admin{}).
+		Where("refresh_token = ?", refreshToken).
+		Updates(map[string]interface{}{
+			"refresh_token":        nil,
+			"refresh_token_expiry": nil,
+		})
+	return result.Error
+}

@@ -95,3 +95,13 @@ func MarkPhoneVerified(phone uint) error {
 		Update("is_verified", true)
 	return result.Error
 }
+
+func RevokeUserRefreshToken(refreshToken string) error {
+	result := DB.Model(&models.User{}).
+		Where("refresh_token = ?", refreshToken).
+		Updates(map[string]interface{}{
+			"refresh_token":        nil,
+			"refresh_token_expiry": nil,
+		})
+	return result.Error
+}

@@ -189,7 +189,7 @@ func ClassList(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
-	
+
 	// TODO: fetch class list data for user
 	var userClasses []models.User_Classes
 	if err := dataprovider.DB.Where("user_id = ?", userID).Find(&userClasses).Error; err != nil {
@@ -772,4 +772,24 @@ func Calendar(c *gin.Context) {
 		"calendar": calendar,
 	})
 
+}
+
+func LogOutUser(c *gin.Context) {
+	// 1️⃣ Extract refresh token from cookie
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing refresh token"})
+		return
+	}
+
+	// 2️⃣ Validate and revoke the refresh token
+	if err := dataprovider.RevokeUserRefreshToken(refreshToken); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke refresh token"})
+		return
+	}
+
+	// 3️⃣ Clear the refresh token cookie
+	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }

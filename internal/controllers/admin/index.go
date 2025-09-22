@@ -221,8 +221,7 @@ func MarkAttendance(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
 		return
 	}
-	
-	
+
 	userId, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -533,4 +532,23 @@ func StudentsList(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"students": students})
+}
+
+func LogOutAdmin(c *gin.Context) {
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing refresh token"})
+		return
+	}
+
+	// 2️⃣ Validate and revoke the refresh token
+	if err := dataprovider.RevokeAdminRefreshToken(refreshToken); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke refresh token"})
+		return
+	}
+
+	// 3️⃣ Clear the refresh token cookie
+	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
