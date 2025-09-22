@@ -16,7 +16,7 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 	protected := r.Group("")
 	protected.Use(middlewares.AuthAdminMiddleware())
 	{
-		protected.GET("/homepage/:id", admin_controller.Homepage)
+		protected.GET("/classList", admin_controller.ClassList)
 		protected.GET("/personalHomepage/:id", admin_controller.PersonalHomepage)
 		protected.POST("/markAttendance/:id", admin_controller.MarkAttendance)
 		protected.GET("/profile/:id", admin_controller.Profile)

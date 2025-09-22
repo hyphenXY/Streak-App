@@ -10,6 +10,10 @@ func CreateAdmin(admin *models.Admin) error {
 	return DB.Create(admin).Error
 }
 
+func GetClassesByAdmin(adminID uint, classes *[]models.Classes) error {
+	return DB.Where("created_by_admin_id = ?", adminID).Find(classes).Error
+}
+
 func UpdateAdminRefreshToken(adminID uint, refreshToken string, refreshTokenExpiry time.Time) error {
 	result := DB.Model(&models.Admin{}).
 		Where("id = ?", adminID).

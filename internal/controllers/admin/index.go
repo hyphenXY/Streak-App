@@ -183,12 +183,27 @@ func SignUp(c *gin.Context) {
 }
 
 // GET /user/homepage/:id
-func Homepage(c *gin.Context) {
-	userID := c.Param("id")
-	// TODO: fetch homepage data for user
+func ClassList(c *gin.Context) {
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var classes []models.Classes
+	uid, ok := userId.(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid userId type"})
+		return
+	}
+	err := dataprovider.GetClassesByAdmin(uint(uid), &classes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch classes"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Homepage data",
-		"user_id": userID,
+		"admin_id":   userId,
+		"classList": classes,
 	})
 }
 
