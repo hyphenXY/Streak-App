@@ -18,7 +18,7 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
 	protected := r.Group("")
 	protected.Use(middlewares.AuthUserMiddleware())
 	{
-		protected.GET("/homepage/:id", user_controller.Homepage)
+		protected.GET("/classList", user_controller.ClassList)
 		protected.POST("/markAttendance/:id", user_controller.MarkAttendance)
 		protected.GET("/profile/:id", user_controller.Profile)
 		protected.PATCH("/profile/:id", user_controller.UpdateProfile)
