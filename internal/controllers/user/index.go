@@ -209,11 +209,26 @@ func ClassList(c *gin.Context) {
 			return
 		}
 	}
-
+	// Merge join date into classes array
+	joinedClasses := make([]gin.H, 0, len(classes))
+	classJoinMap := make(map[uint]time.Time)
+	for _, uc := range userClasses {
+		classJoinMap[uc.ClassID] = uc.CreatedAt
+	}
+	for _, class := range classes {
+		joinedClasses = append(joinedClasses, gin.H{
+			"class_id":            class.ID,
+			"class_name":          class.Name,
+			"class_code":          class.ClassCode,
+			"created_at":          class.CreatedAt,
+			"joined_at":           classJoinMap[class.ID],
+			"email":               class.Email,
+			"phone":               class.Phone,
+			"created_by_admin_id": class.CreatedByAdminId,
+		})
+	}
 	c.JSON(http.StatusOK, gin.H{
-		"user_id":  userID,
-		"classes":  classes,
-		"enrolled": userClasses,
+		"classes": joinedClasses,
 	})
 }
 
