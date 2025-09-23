@@ -82,6 +82,7 @@ func SignIn(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":      "Sign in successful",
+		"role":         "admin",
 		"access_token": accessToken,
 		"user": gin.H{
 			"id":        user.ID,
@@ -202,7 +203,7 @@ func ClassList(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"admin_id":   userId,
+		"admin_id":  userId,
 		"classList": classes,
 	})
 }
