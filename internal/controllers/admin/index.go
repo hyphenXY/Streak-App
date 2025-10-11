@@ -571,13 +571,31 @@ func CreateClass(c *gin.Context) {
 }
 
 func StudentsList(c *gin.Context) {
-	classId, exists := c.Get("classId")
+	classId := c.Param("classId")
+	if classId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classId parameter"})
+		return
+	}
+	adminId, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-
-	students, err := dataprovider.GetStudentsByClassID(classId.(uint))
+	classIdUint, err := strconv.ParseUint(classId, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classId parameter"})
+		return
+	}
+	isUserAdmin, err := dataprovider.IsUserAdmin(uint(adminId.(float64)), uint(classIdUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user role"})
+		return
+	}
+	if !isUserAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin privileges required"})
+		return
+	}
+	students, err := dataprovider.GetStudentsByClassID(uint(classIdUint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch students"})
 		return
@@ -663,7 +681,7 @@ func PersonalSummary(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "admin privileges required"})
 		return
 	}
-	
+
 	c.JSON(http.StatusAccepted, gin.H{
 		"today_status":         "Present",
 		"current_week_present": 2,

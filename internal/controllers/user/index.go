@@ -656,7 +656,7 @@ func Calendar(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	classID := c.Query("class_id")
+	classID := c.Param("classId")
 	if classID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing class_id query parameter"})
 		return
