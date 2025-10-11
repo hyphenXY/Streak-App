@@ -603,7 +603,7 @@ func ClassDetails(c *gin.Context) {
 
 func QuickSummary(c *gin.Context) {
 	userID := c.Param("id")
-	classId := c.Query("class_id")
+	classId := c.Param("classId")
 
 	classIDUint, err := strconv.ParseUint(classId, 10, 64)
 	if err != nil {
@@ -639,89 +639,14 @@ func QuickSummary(c *gin.Context) {
 		return
 	}
 
-	// Best streak ever in the class using attendance table
-	var bestStreak int64
-	if err := dataprovider.DB.
-		Table("attendance").
-		Where("class_id = ?", class.ID).
-		Select("MAX(streak)").
-		Scan(&bestStreak).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch best streak"})
-		return
-	}
-
-	// Attendance summary for current week
-	var presentCount, absentCount, notMarkedCount int64
-	startOfWeek := utils.StartOfWeek(time.Now())
-	endOfWeek := utils.EndOfWeek(time.Now())
-
-	if err := dataprovider.DB.
-		Table("attendance").
-		Where("class_id = ? AND date BETWEEN ? AND ?", class.ID, startOfWeek, endOfWeek).
-		Where("status = ?", "present").
-		Count(&presentCount).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch present count"})
-		return
-	}
-	if err := dataprovider.DB.
-		Table("attendance").
-		Where("class_id = ? AND date BETWEEN ? AND ?", class.ID, startOfWeek, endOfWeek).
-		Where("status = ?", "absent").
-		Count(&absentCount).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch absent count"})
-		return
-	}
-	if err := dataprovider.DB.
-		Table("attendance").
-		Where("class_id = ? AND date BETWEEN ? AND ?", class.ID, startOfWeek, endOfWeek).
-		Where("status = ?", "notmarked").
-		Count(&notMarkedCount).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch not marked count"})
-		return
-	}
-
-	// Total attendance records and present ones for percentage
-	var totalAttendance, totalPresent int64
-	if err := dataprovider.DB.
-		Table("attendance").
-		Where("class_id = ?", class.ID).
-		Count(&totalAttendance).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch total attendance"})
-		return
-	}
-	if err := dataprovider.DB.
-		Table("attendance").
-		Where("class_id = ? AND status = ?", class.ID, "present").
-		Count(&totalPresent).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch total present"})
-		return
-	}
-	var attendancePercentage float64
-	if totalAttendance > 0 {
-		attendancePercentage = float64(totalPresent) / float64(totalAttendance) * 100
-	}
-
 	// Add summary to response
-	c.Set("summary", gin.H{
-		"best_streak": bestStreak,
-		"current_week": gin.H{
-			"present":   presentCount,
-			"absent":    absentCount,
-			"notmarked": notMarkedCount,
-		},
-		"total_present":         totalPresent,
-		"total_attendance":      totalAttendance,
-		"attendance_percentage": attendancePercentage,
-	})
-
-	summary, exists := c.Get("summary")
-	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get summary from context"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"class":   class,
-		"summary": summary,
+	c.JSON(http.StatusAccepted, gin.H{
+		"today_status":         "Present",
+		"current_week_present": 2,
+		"current_week_absent":  3,
+		"total_present":        4,
+		"total_absent":         5,
+		"total_not_marked":     6,
 	})
 }
 
@@ -793,4 +718,44 @@ func LogOutUser(c *gin.Context) {
 	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+}
+
+func Streak(c *gin.Context) {
+	userIdVal, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	classId, exists := c.Params.Get("classId")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classId parameter"})
+		return
+	}
+
+	classIdUint, err := strconv.ParseUint(classId, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classId"})
+		return
+	}
+
+	userId, ok := userIdVal.(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid userId type"})
+		return
+	}
+
+	// Check if user is enrolled in the class
+	var enrollment models.User_Classes
+	isEnrolled, err := dataprovider.IfAlreadyEnrolled(uint(userId), uint(classIdUint), &enrollment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check enrollment status"})
+		return
+	}
+	if !isEnrolled {
+		c.JSON(http.StatusForbidden, gin.H{"error": "User not enrolled in this class"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"currentStreak": 5, "bestStreak": 10})
 }

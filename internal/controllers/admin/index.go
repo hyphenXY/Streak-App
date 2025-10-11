@@ -208,18 +208,58 @@ func ClassList(c *gin.Context) {
 	})
 }
 
-func PersonalHomepage(c *gin.Context) {
-	userID := c.Param("id")
-	// TODO: fetch personal homepage data for user
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Personal homepage data",
-		"user_id": userID,
-	})
+func DaySummary(c *gin.Context) {
+	classID := c.Query("classId")
+	if classID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classId query parameter"})
+		return
+	}
+	date := c.Query("date")
+	if date == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing date query parameter"})
+		return
+	}
+
+	adminId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	classIDUint, err := strconv.ParseUint(classID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid class ID"})
+		return
+	}
+
+	isClassExists, err := dataprovider.IfClassExists(uint(classIDUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check class"})
+		return
+	}
+
+	if !isClassExists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
+		return
+	}
+
+	isUserAdmin, err := dataprovider.IsUserAdmin(uint(adminId.(float64)), uint(classIDUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user role"})
+		return
+	}
+	if !isUserAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin privileges required"})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{"present": 4, "absent": 1, "notMarked": 5})
+
 }
 
 // POST /user/markAttendance/:id
 func MarkAttendance(c *gin.Context) {
-	ClassID := c.Param("id")
+	ClassID := c.Param("classId")
 
 	ClassIDUint, err := strconv.ParseUint(ClassID, 10, 64)
 	if err != nil {
@@ -567,4 +607,36 @@ func LogOutAdmin(c *gin.Context) {
 	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+}
+
+func Streak(c *gin.Context) {
+	adminId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	classId := c.Param("classId")
+	if classId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classId parameter"})
+		return
+	}
+
+	classIdUint, err := strconv.ParseUint(classId, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classId parameter"})
+		return
+	}
+
+	isUserAdmin, err := dataprovider.IsUserAdmin(uint(adminId.(float64)), uint(classIdUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user role"})
+		return
+	}
+	if !isUserAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin privileges required"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"currentStreak": 5, "bestStreak": 10})
 }
