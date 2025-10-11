@@ -208,15 +208,10 @@ func ClassList(c *gin.Context) {
 	})
 }
 
-func DaySummary(c *gin.Context) {
+func QuickSummary(c *gin.Context) {
 	classID := c.Query("classId")
 	if classID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classId query parameter"})
-		return
-	}
-	date := c.Query("date")
-	if date == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing date query parameter"})
 		return
 	}
 
@@ -253,7 +248,7 @@ func DaySummary(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusAccepted, gin.H{"present": 4, "absent": 1, "notMarked": 5})
+	c.JSON(http.StatusAccepted, gin.H{"today_present": 3, "today_absent": 2, "today_unmarked": 1, "current_week_present_percentage": 60})
 
 }
 
@@ -639,4 +634,42 @@ func Streak(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"currentStreak": 5, "bestStreak": 10})
+}
+
+func PersonalSummary(c *gin.Context) {
+	adminId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	classId := c.Param("classId")
+	if classId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classId parameter"})
+		return
+	}
+
+	classIdUint, err := strconv.ParseUint(classId, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classId parameter"})
+		return
+	}
+	isUserAdmin, err := dataprovider.IsUserAdmin(uint(adminId.(float64)), uint(classIdUint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user role"})
+		return
+	}
+	if !isUserAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin privileges required"})
+		return
+	}
+	
+	c.JSON(http.StatusAccepted, gin.H{
+		"today_status":         "Present",
+		"current_week_present": 2,
+		"current_week_absent":  3,
+		"total_present":        4,
+		"total_absent":         5,
+		"total_not_marked":     6,
+	})
 }

@@ -17,7 +17,7 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 	protected.Use(middlewares.AuthAdminMiddleware())
 	{
 		protected.GET("/classList", admin_controller.ClassList)
-		protected.GET("/daySummary", admin_controller.DaySummary)
+		protected.GET("/quickSummary/:classId", admin_controller.QuickSummary)
 		protected.POST("/markAttendance/:classId", admin_controller.MarkAttendance)
 		protected.GET("/profile/:id", admin_controller.Profile)
 		protected.PATCH("/profile/:id", admin_controller.UpdateProfile)
@@ -25,5 +25,6 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 		protected.GET("/studentsList", admin_controller.StudentsList)
 		protected.POST("/logOutAdmin", admin_controller.LogOutAdmin)
 		protected.GET("/streak", admin_controller.Streak)
+		protected.GET("/personalSummary/:classId", admin_controller.PersonalSummary)
 	}
 }
