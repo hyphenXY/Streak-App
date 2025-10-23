@@ -24,7 +24,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "10000" // Render's default fallback port
+		port = "8080" // Render's default fallback port
 	}
 	fmt.Printf("🚀 Server running on http://0.0.0.0:%s\n", port)
 	if err := r.Run(":" + port); err != nil {
