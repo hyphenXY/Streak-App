@@ -15,18 +15,24 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
 	r.POST("/refreshToken", user_controller.RefreshTokenUser)
 
 	// Protected routes
-	protected := r.Group("")
-	protected.Use(middlewares.AuthUserMiddleware())
+	protectedUserClasses := r.Group("")
+	protectedUserClasses.Use(middlewares.AuthUserMiddleware(), middlewares.IsUserClass())
 	{
-		protected.GET("/classList", user_controller.ClassList)
-		protected.POST("/markAttendance/:id", user_controller.MarkAttendance)
-		protected.GET("/profile/:id", user_controller.Profile)
-		protected.PATCH("/profile/:id", user_controller.UpdateProfile)
-		protected.POST("/enroll/:classCode", user_controller.Enroll)
-		protected.POST("/classDetails", user_controller.ClassDetails)
-		protected.GET("/calendar/:classId", user_controller.Calendar)
-		protected.POST("/logOutUser", user_controller.LogOutUser)
-		protected.GET("/streak", user_controller.Streak)
-		protected.GET("/quickSummary/:classId", user_controller.QuickSummary)
+		protectedUserClasses.POST("/markAttendance/:classID", user_controller.MarkAttendance)
+		protectedUserClasses.GET("/classDetails/:classID", user_controller.ClassDetails)
+		protectedUserClasses.GET("/calendar/:classID", user_controller.Calendar)
+		protectedUserClasses.GET("/streak/:classID", user_controller.Streak)
+		protectedUserClasses.GET("/quickSummary/:classID", user_controller.QuickSummary)
+	}
+
+	protectedUser := r.Group("")
+	protectedUser.Use(middlewares.AuthUserMiddleware())
+	{
+		protectedUserClasses.POST("/enroll/:classCode", user_controller.Enroll)
+		protectedUserClasses.GET("/classList", user_controller.ClassList)
+		protectedUser.POST("/logOutUser", user_controller.LogOutUser)
+		protectedUser.PATCH("/profile/:id", user_controller.UpdateProfile)
+		protectedUser.GET("/profile", user_controller.Profile)
+
 	}
 }

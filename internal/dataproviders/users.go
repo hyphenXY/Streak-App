@@ -23,15 +23,6 @@ func UpdateUserRefreshToken(userID uint, refreshToken string, refreshTokenExpiry
 	return result.Error
 }
 
-func EnrollUser(userID uint, classID uint) error {
-	enrollment := models.User_Classes{
-		UserID:  userID,
-		ClassID: classID,
-	}
-	result := DB.Create(&enrollment)
-	return result.Error
-}
-
 func StoreOTP(phone uint, otp string) error {
 	otpRecord := models.OTPs{
 		Phone:      phone,
@@ -66,17 +57,6 @@ func VerifyOTP(phone uint, otp string) (string, error) {
 	return "Verified!", nil // OTP verified successfully
 }
 
-func IfAlreadyEnrolled(userID uint, classID uint, enrollment *models.User_Classes) (bool, error) {
-	err := DB.Where("user_id = ? AND class_id = ?", userID, classID).First(enrollment).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return false, nil // Not enrolled
-		}
-		return false, err // Other error
-	}
-	return true, nil // Already enrolled
-}
-
 func IsPhoneVerified(phone uint) (bool, error) {
 	var otp models.OTPs
 	err := DB.Where("phone = ? AND is_verified = ?", phone, true).First(&otp).Error
@@ -104,4 +84,37 @@ func RevokeUserRefreshToken(refreshToken string) error {
 			"refresh_token_expiry": nil,
 		})
 	return result.Error
+}
+
+func UpdateProfile(req map[string]interface{}, userId uint) error {
+	updates := map[string]interface{}{}
+
+	if req["first_name"] != "" {
+		updates["FirstName"] = req["first_name"]
+	}
+	if req["last_name"] != "" {
+		updates["LastName"] = req["last_name"]
+	}
+	if req["Email"] != "" {
+		updates["Email"] = req["Email"]
+	}
+
+	// Always update UpdatedAt
+	updates["UpdatedAt"] = time.Now()
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	result := DB.Model(&models.User{}).
+		Where("id = ?", userId).
+		Updates(updates)
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

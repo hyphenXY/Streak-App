@@ -3,6 +3,7 @@ package dataprovider
 import (
 	// "gorm.io/gorm"
 	"errors"
+	"time"
 
 	"github.com/hyphenXY/Streak-App/internal/models"
 	"gorm.io/gorm"
@@ -21,7 +22,7 @@ func CreateClass(class *models.Classes) error {
 	return DB.Create(class).Error
 }
 
-func MarkAttendanceByUser(classID uint, userID uint) error {
+func MarkAttendanceByUser(classID uint, userID uint, status string) error {
 	// check in attendances table if record exists
 	var attendance models.Attendance
 	err := DB.Model(&models.Attendance{}).
@@ -33,7 +34,7 @@ func MarkAttendanceByUser(classID uint, userID uint) error {
 			ClassID:      classID,
 			MarkedById:   userID,
 			MarkedByRole: "user",
-			Status:       "present",
+			Status:       status,
 		}
 		return DB.Create(&attendance).Error
 	}
@@ -92,4 +93,173 @@ func GetClassIDByCode(classCode string) (uint, error) {
 		return 0, err
 	}
 	return class.ID, nil
+}
+
+func GetClassByID(classID uint) (*models.Classes, error) {
+	var class models.Classes
+	err := DB.Where("id = ?", classID).First(&class).Error
+	if err != nil {
+		return nil, err
+	}
+	return &class, nil
+}
+
+func GetUserCalendar(userID uint, classID uint, role string) ([]models.Attendance, error) {
+	var attendanceRecords []models.Attendance
+	err := DB.
+		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ?", userID, role, classID).
+		Order("created_at ASC").
+		Find(&attendanceRecords).Error
+	if err != nil {
+		return nil, err
+	}
+	return attendanceRecords, err
+}
+
+func GetUserStreak(userID uint, classID uint, role string) (int, int, error) {
+	var attendances []models.Attendance
+	err := DB.
+		Where("marked_by_id = ?  AND marked_by_role = ? AND class_id = ?", userID, role, classID).
+		Order("created_at ASC").
+		Find(&attendances).Error
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// Calculate the best streak
+	bestStreak := 0
+	currentStreak := 0
+
+	// Group records by date (keep the last status for a given date)
+	type dayRec struct {
+		date   time.Time
+		status string
+	}
+	var days []dayRec
+	for _, a := range attendances {
+		d := time.Date(a.CreatedAt.Year(), a.CreatedAt.Month(), a.CreatedAt.Day(), 0, 0, 0, 0, a.CreatedAt.Location())
+		if len(days) == 0 || !days[len(days)-1].date.Equal(d) {
+			days = append(days, dayRec{date: d, status: a.Status})
+		} else {
+			// overwrite with the later status on the same day
+			days[len(days)-1].status = a.Status
+		}
+	}
+
+	var prevDate time.Time
+	var prevSet bool
+	for _, day := range days {
+		if day.status == "present" {
+			if prevSet && day.date.Equal(prevDate.AddDate(0, 0, 1)) {
+				// consecutive day
+				currentStreak++
+			} else {
+				// start new streak
+				currentStreak = 1
+			}
+			prevDate = day.date
+			prevSet = true
+		} else {
+			if currentStreak > bestStreak {
+				bestStreak = currentStreak
+			}
+			currentStreak = 0
+			prevSet = false
+		}
+	}
+	if currentStreak > bestStreak {
+		bestStreak = currentStreak
+	}
+	return currentStreak, bestStreak, nil
+}
+
+func GetUserQuickSummary(userID uint, classID uint, role string) (map[string]interface{}, error) {
+	var todayAttendance models.Attendance
+	err := DB.Model(&models.Attendance{}).
+		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND DATE(created_at) = CURRENT_DATE", userID, role, classID).
+		First(&todayAttendance).Error
+
+	todayStatus := "Not marked"
+	if err == nil {
+		switch todayAttendance.Status {
+		case "present":
+			todayStatus = "Present"
+		case "absent":
+			todayStatus = "Absent"
+		default:
+			todayStatus = todayAttendance.Status
+		}
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	var currentWeekPresent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND YEARWEEK(created_at) = YEARWEEK(CURRENT_DATE)", userID, role, classID, "present").
+		Count(&currentWeekPresent).Error; err != nil {
+		return nil, err
+	}
+
+	var currentWeekAbsent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND YEARWEEK(created_at) = YEARWEEK(CURRENT_DATE)", userID, role, classID, "absent").
+		Count(&currentWeekAbsent).Error; err != nil {
+		return nil, err
+	}
+
+	var totalPresent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ?", userID, role, classID, "present").
+		Count(&totalPresent).Error; err != nil {
+		return nil, err
+	}
+
+	var totalAbsent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ?", userID, role, classID, "absent").
+		Count(&totalAbsent).Error; err != nil {
+		return nil, err
+	}
+
+	var totalSessions int64
+	if err := DB.Model(&models.Attendance{}).
+		Distinct("created_at").
+		Where("class_id = ? AND marked_by_role = ?", classID, role).
+		Count(&totalSessions).Error; err != nil {
+		return nil, err
+	}
+
+	totalNotMarked := max(totalSessions-(totalPresent+totalAbsent), 0)
+
+	// quick summary map (kept here for future use; function returns total_not_marked)
+	summary := map[string]interface{}{
+		"today_status":         todayStatus,
+		"current_week_present": currentWeekPresent,
+		"current_week_absent":  currentWeekAbsent,
+		"total_present":        totalPresent,
+		"total_absent":         totalAbsent,
+		"total_not_marked":     totalNotMarked,
+	}
+
+	return summary, nil
+}
+
+func IfAlreadyEnrolled(userID uint, classID uint, enrollment *models.User_Classes) (bool, error) {
+	err := DB.Where("user_id = ? AND class_id = ?", userID, classID).First(enrollment).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil // Not enrolled
+		}
+		return false, err // Other error
+	}
+	return true, nil // Already enrolled
+}
+
+func EnrollUser(userID uint, classID uint) error {
+	enrollment := models.User_Classes{
+		UserID:  userID,
+		ClassID: classID,
+	}
+	result := DB.Create(&enrollment)
+	return result.Error
 }
