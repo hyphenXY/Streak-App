@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/hyphenXY/Streak-App/internal/models"
+	"gorm.io/gorm"
 )
 
 func CreateAdmin(admin *models.Admin) error {
@@ -36,4 +37,44 @@ func RevokeAdminRefreshToken(refreshToken string) error {
 			"refresh_token_expiry": nil,
 		})
 	return result.Error
+}
+
+func GetAdminProfile(adminID uint) (*models.Admin, error) {
+	admin := &models.Admin{}
+	DB.Where("id = ?", adminID).First(admin)
+	return admin, nil
+}
+
+func UpdateAdminProfile(req map[string]interface{}, userId uint) error {
+
+	updates := map[string]interface{}{}
+
+	if req["first_name"] != "" {
+		updates["FirstName"] = req["first_name"]
+	}
+	if req["last_name"] != "" {
+		updates["LastName"] = req["last_name"]
+	}
+	if req["Email"] != "" {
+		updates["Email"] = req["Email"]
+	}
+
+	// Always update UpdatedAt
+	updates["UpdatedAt"] = time.Now()
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	result := DB.Model(&models.Admin{}).
+		Where("id = ?", userId).
+		Updates(updates)
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

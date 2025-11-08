@@ -263,3 +263,67 @@ func EnrollUser(userID uint, classID uint) error {
 	result := DB.Create(&enrollment)
 	return result.Error
 }
+
+func GetClassSummary(classID uint) (map[string]interface{}, error) {
+	summary := make(map[string]interface{})
+
+	var totalStudents int64
+	if err := DB.Model(&models.User_Classes{}).
+		Where("class_id = ?", classID).
+		Count(&totalStudents).Error; err != nil {
+		return nil, err
+	}
+	summary["total_students"] = totalStudents
+
+	var totalPresent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("class_id = ? AND status = ?", classID, "present").
+		Count(&totalPresent).Error; err != nil {
+		return nil, err
+	}
+	summary["total_present"] = totalPresent
+
+	var totalAbsent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("class_id = ? AND status = ?", classID, "absent").
+		Count(&totalAbsent).Error; err != nil {
+		return nil, err
+	}
+	summary["total_absent"] = totalAbsent
+
+	// Current week present/absent (uses YEARWEEK to match earlier queries)
+	var currentWeekPresent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("class_id = ? AND status = ? AND YEARWEEK(created_at) = YEARWEEK(CURRENT_DATE)", classID, "present").
+		Count(&currentWeekPresent).Error; err != nil {
+		return nil, err
+	}
+	summary["current_week_present"] = currentWeekPresent
+
+	var currentWeekAbsent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("class_id = ? AND status = ? AND YEARWEEK(created_at) = YEARWEEK(CURRENT_DATE)", classID, "absent").
+		Count(&currentWeekAbsent).Error; err != nil {
+		return nil, err
+	}
+	summary["current_week_absent"] = currentWeekAbsent
+
+	// Current month present/absent
+	var currentMonthPresent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("class_id = ? AND status = ? AND MONTH(created_at) = MONTH(CURRENT_DATE) AND YEAR(created_at) = YEAR(CURRENT_DATE)", classID, "present").
+		Count(&currentMonthPresent).Error; err != nil {
+		return nil, err
+	}
+	summary["current_month_present"] = currentMonthPresent
+
+	var currentMonthAbsent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("class_id = ? AND status = ? AND MONTH(created_at) = MONTH(CURRENT_DATE) AND YEAR(created_at) = YEAR(CURRENT_DATE)", classID, "absent").
+		Count(&currentMonthAbsent).Error; err != nil {
+		return nil, err
+	}
+	summary["current_month_absent"] = currentMonthAbsent
+
+	return summary, nil
+}

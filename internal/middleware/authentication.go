@@ -160,3 +160,45 @@ func IsUserClass() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func IsAdminClass() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		classID := c.Param("classId")
+		classIDUint, err := strconv.ParseUint(classID, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid class ID"})
+			c.Abort()
+			return
+		}
+		ifClassExists, err := dataprovider.IfClassExists(uint(classIDUint))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check class existence"})
+			c.Abort()
+			return
+		}
+		if !ifClassExists {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
+			c.Abort()
+			return
+		}
+		userIDVal, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			c.Abort()
+			return
+		}
+		isAdmin, err := dataprovider.IsUserAdmin(uint(userIDVal.(float64)), uint(classIDUint))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check admin status"})
+			c.Abort()
+			return
+		}
+		if !isAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "User is not an admin of this class"})
+			c.Abort()
+			return
+		}
+		c.Set("classID", uint(classIDUint))
+		c.Next()
+	}
+}

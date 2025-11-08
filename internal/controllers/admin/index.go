@@ -208,47 +208,32 @@ func ClassList(c *gin.Context) {
 	})
 }
 
-func QuickSummary(c *gin.Context) {
-	classID := c.Query("classId")
-	if classID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classId query parameter"})
-		return
-	}
-
-	adminId, exists := c.Get("userId")
+func PersonalSummary(c *gin.Context) {
+	userID, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
+	classID, exists := c.Get("classID")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
+		return
+	}
+	classIDFloat, ok := classID.(uint)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classID type"})
+		return
+	}
 
-	classIDUint, err := strconv.ParseUint(classID, 10, 64)
+	summary, err := dataprovider.GetUserQuickSummary(uint(userID.(float64)), classIDFloat, "admin")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid class ID"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get quick summary"})
 		return
 	}
 
-	isClassExists, err := dataprovider.IfClassExists(uint(classIDUint))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check class"})
-		return
-	}
-
-	if !isClassExists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
-		return
-	}
-
-	isUserAdmin, err := dataprovider.IsUserAdmin(uint(adminId.(float64)), uint(classIDUint))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user role"})
-		return
-	}
-	if !isUserAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin privileges required"})
-		return
-	}
-
-	c.JSON(http.StatusAccepted, gin.H{"today_present": 3, "today_absent": 2, "today_unmarked": 1, "current_week_present_percentage": 60})
+	c.JSON(http.StatusAccepted, gin.H{
+		"quick_summary": summary,
+	})
 
 }
 
@@ -302,22 +287,36 @@ func MarkAttendance(c *gin.Context) {
 
 // GET /user/profile/:id
 func Profile(c *gin.Context) {
-	userID := c.Param("id")
-	// TODO: fetch user profile from DB
-	c.JSON(http.StatusOK, gin.H{
-		"user_id": userID,
-		"name":    "John Doe",
-		"email":   "john@example.com",
-	})
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	uid, ok := userID.(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid userId type"})
+		return
+	}
+	user, err := dataprovider.GetAdminProfile(uint(uid))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user profile"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
 // PATCH /user/profile/:id
 func UpdateProfile(c *gin.Context) {
-	userID := c.Param("id")
+	userID, exists := c.Get("UserId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
 
 	type UpdateProfileRequest struct {
-		Name  string `json:"name"`
-		Email string `json:"email"`
+		FirstName string `json:"firstName"`
+		LastName  string `json:"lastName"`
+		Email     string `json:"email"`
 	}
 
 	var req UpdateProfileRequest
@@ -326,11 +325,19 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	// TODO: update profile in DB
+	updateData := map[string]interface{}{
+		"first_name": req.FirstName,
+		"last_name":  req.LastName,
+		"email":      strings.ToLower(strings.TrimSpace(req.Email)),
+	}
+
+	dataprovider.UpdateAdminProfile(updateData, uint(userID.(float64)))
+
+	// TODO: update profile in DB using updateData
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Profile updated",
 		"user_id": userID,
-		"name":    req.Name,
+		"name":    req.FirstName + " " + req.LastName,
 		"email":   req.Email,
 	})
 }
@@ -623,71 +630,48 @@ func LogOutAdmin(c *gin.Context) {
 }
 
 func Streak(c *gin.Context) {
-	adminId, exists := c.Get("userId")
+	userID, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-
-	classId := c.Param("classId")
-	if classId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classId parameter"})
+	classID, exists := c.Get("classID")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
+		return
+	}
+	classIDFloat, ok := classID.(uint)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classID type"})
 		return
 	}
 
-	classIdUint, err := strconv.ParseUint(classId, 10, 64)
+	currentStreak, bestStreak, err := dataprovider.GetUserStreak(uint(userID.(float64)), classIDFloat, "admin")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classId parameter"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user streak"})
 		return
 	}
 
-	isUserAdmin, err := dataprovider.IsUserAdmin(uint(adminId.(float64)), uint(classIdUint))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user role"})
-		return
-	}
-	if !isUserAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin privileges required"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"currentStreak": 5, "bestStreak": 10})
+	c.JSON(http.StatusOK, gin.H{"currentStreak": currentStreak, "bestStreak": bestStreak})
 }
 
-func PersonalSummary(c *gin.Context) {
-	adminId, exists := c.Get("userId")
+func QuickSummary(c *gin.Context) {
+	classID, exists := c.Get("classID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
+		return
+	}
+	classIDFloat, ok := classID.(uint)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classID type"})
 		return
 	}
 
-	classId := c.Param("classId")
-	if classId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classId parameter"})
-		return
-	}
-
-	classIdUint, err := strconv.ParseUint(classId, 10, 64)
+	summary, err := dataprovider.GetClassSummary(classIDFloat)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classId parameter"})
-		return
-	}
-	isUserAdmin, err := dataprovider.IsUserAdmin(uint(adminId.(float64)), uint(classIdUint))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user role"})
-		return
-	}
-	if !isUserAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin privileges required"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get class summary"})
 		return
 	}
 
-	c.JSON(http.StatusAccepted, gin.H{
-		"today_status":         "Present",
-		"current_week_present": 2,
-		"current_week_absent":  3,
-		"total_present":        4,
-		"total_absent":         5,
-		"total_not_marked":     6,
-	})
+	c.JSON(http.StatusOK, gin.H{"summary": summary})
 }
