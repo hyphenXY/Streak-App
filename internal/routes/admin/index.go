@@ -27,6 +27,8 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 	protectedAdminClasses.Use(middlewares.AuthAdminMiddleware(), middlewares.IsAdminClass())
 	{
 		protected.GET("/quickSummary/:classId", admin_controller.QuickSummary)
+		protected.GET("/todaySummary/:classId",admin_controller.TodaySummary)
+		protected.GET("/calendar/:classId",admin_controller.Calendar)
 		protected.POST("/markAttendance/:classId", admin_controller.MarkAttendance)
 		protected.GET("/studentsList/:classId", admin_controller.StudentsList)
 		protected.GET("/streak/:classId", admin_controller.Streak)

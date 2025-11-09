@@ -675,3 +675,61 @@ func QuickSummary(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"summary": summary})
 }
+
+func Calendar(c *gin.Context) {
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	classID, exists := c.Get("classID")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
+		return
+	}
+	classIDFloat, ok := classID.(uint)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classID type"})
+		return
+	}
+
+	attendanceRecords, err := dataprovider.GetUserCalendar(uint(userID.(float64)), classIDFloat, "admin")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user calendar"})
+		return
+	}
+
+	// Prepare response: list of {date, status}
+	calendar := make([]gin.H, 0, len(attendanceRecords))
+	for _, record := range attendanceRecords {
+		calendar = append(calendar, gin.H{
+			"date":   record.CreatedAt.Format("2006-01-02"),
+			"status": record.Status,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"class_id": classID,
+		"user_id":  userID,
+		"calendar": calendar,
+	})
+}
+
+func TodaySummary(c *gin.Context) {
+	classID, exists := c.Get("classID")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
+		return
+	}
+	classIDFloat, ok := classID.(uint)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classID type"})
+		return
+	}
+	summary, err := dataprovider.GetTodaySummary(classIDFloat)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get today summary"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"summary": summary})
+}

@@ -327,3 +327,33 @@ func GetClassSummary(classID uint) (map[string]interface{}, error) {
 
 	return summary, nil
 }
+
+func GetTodaySummary(classID uint) (map[string]interface{}, error) {
+	summary := make(map[string]interface{})
+
+	var totalPresent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("class_id = ? AND status = ? AND DATE(created_at) = CURDATE()", classID, "present").
+		Count(&totalPresent).Error; err != nil {
+		return nil, err
+	}
+	summary["total_present"] = totalPresent
+
+	var totalAbsent int64
+	if err := DB.Model(&models.Attendance{}).
+		Where("class_id = ? AND status = ? AND DATE(created_at) = CURDATE()", classID, "absent").
+		Count(&totalAbsent).Error; err != nil {
+		return nil, err
+	}
+	summary["total_absent"] = totalAbsent
+
+	var totalStudents int64
+	if err := DB.Model(&models.User_Classes{}).
+		Where("class_id = ?", classID).
+		Count(&totalStudents).Error; err != nil {
+		return nil, err
+	}
+	summary["total_students"] = totalStudents
+
+	return summary, nil
+}
