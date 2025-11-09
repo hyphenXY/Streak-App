@@ -26,13 +26,13 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 	protectedAdminClasses := r.Group("")
 	protectedAdminClasses.Use(middlewares.AuthAdminMiddleware(), middlewares.IsAdminClass())
 	{
-		protected.GET("/quickSummary/:classId", admin_controller.QuickSummary)
-		protected.GET("/todaySummary/:classId",admin_controller.TodaySummary)
-		protected.GET("/calendar/:classId",admin_controller.Calendar)
-		protected.POST("/markAttendance/:classId", admin_controller.MarkAttendance)
-		protected.GET("/studentsList/:classId", admin_controller.StudentsList)
-		protected.GET("/streak/:classId", admin_controller.Streak)
-		protected.GET("/personalSummary/:classId", admin_controller.PersonalSummary)
+		protectedAdminClasses.GET("/quickSummary/:classId", admin_controller.QuickSummary)
+		protectedAdminClasses.GET("/todaySummary/:classId",admin_controller.TodaySummary)
+		protectedAdminClasses.GET("/calendar/:classId",admin_controller.Calendar)
+		protectedAdminClasses.POST("/markAttendance/:classId", admin_controller.MarkAttendance)
+		protectedAdminClasses.GET("/studentsList/:classId", admin_controller.StudentsList)
+		protectedAdminClasses.GET("/streak/:classId", admin_controller.Streak)
+		protectedAdminClasses.GET("/personalSummary/:classId", admin_controller.PersonalSummary)
 
 	}
 }
