@@ -207,6 +207,13 @@ func GetUserQuickSummary(userID uint, classID uint, role string) (map[string]int
 		return nil, err
 	}
 
+	var currentWeekNotMarked int64
+	if err := DB.Model(&models.Attendance{}).
+		Distinct("DATE(created_at)").Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ?", userID, role, classID, "not_marked").
+		Count(&currentWeekNotMarked).Error; err != nil {
+		return nil, err
+	}
+
 	var totalPresent int64
 	if err := DB.Model(&models.Attendance{}).
 		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ?", userID, role, classID, "present").
@@ -233,12 +240,13 @@ func GetUserQuickSummary(userID uint, classID uint, role string) (map[string]int
 
 	// quick summary map (kept here for future use; function returns total_not_marked)
 	summary := map[string]interface{}{
-		"today_status":         todayStatus,
-		"current_week_present": currentWeekPresent,
-		"current_week_absent":  currentWeekAbsent,
-		"total_present":        totalPresent,
-		"total_absent":         totalAbsent,
-		"total_not_marked":     totalNotMarked,
+		"today_status":            todayStatus,
+		"current_week_present":    currentWeekPresent,
+		"current_week_absent":     currentWeekAbsent,
+		"current_week_not_marked": currentWeekNotMarked,
+		"total_present":           totalPresent,
+		"total_absent":            totalAbsent,
+		"total_not_marked":        totalNotMarked,
 	}
 
 	return summary, nil

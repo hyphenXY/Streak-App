@@ -626,7 +626,7 @@ func QuickSummary(c *gin.Context) {
 	}
 
 	// Add summary to response
-	c.JSON(http.StatusAccepted, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"quick_summary": quickSummary,
 	})
 }
