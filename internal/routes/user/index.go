@@ -28,8 +28,8 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
 	protectedUser := r.Group("")
 	protectedUser.Use(middlewares.AuthUserMiddleware())
 	{
-		protectedUserClasses.POST("/enroll/:classCode", user_controller.Enroll)
-		protectedUserClasses.GET("/classList", user_controller.ClassList)
+		protectedUser.POST("/enroll/:classCode", user_controller.Enroll)
+		protectedUser.GET("/classList", user_controller.ClassList)
 		protectedUser.POST("/logOutUser", user_controller.LogOutUser)
 		protectedUser.PATCH("/profile/:id", user_controller.UpdateProfile)
 		protectedUser.GET("/profile", user_controller.Profile)
