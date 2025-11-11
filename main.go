@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/hyphenXY/Streak-App/internal/cache"
 	dataprovider "github.com/hyphenXY/Streak-App/internal/dataproviders"
 	"github.com/hyphenXY/Streak-App/internal/routes"
 	"github.com/joho/godotenv"
@@ -18,6 +19,8 @@ func main() {
 	if err := dataprovider.InitDB(); err != nil {
 		log.Fatalf("❌ Could not initialize database: %v", err)
 	}
+
+	cache.InitRedis()
 
 	// Start the Gin router
 	r := routes.SetupRouter()
