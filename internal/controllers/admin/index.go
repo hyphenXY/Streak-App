@@ -733,3 +733,91 @@ func TodaySummary(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"summary": summary})
 }
+
+func ResetPassword(c *gin.Context) {
+	type ResetPasswordRequest struct {
+		NewPassword string `json:"newPassword" binding:"required"`
+		Phone       uint   `json:"phone" binding:"required"`
+		OTP         uint   `json:"otp" binding:"required"`
+	}
+	var req ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	userIDVal, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	isValid, err := dataprovider.IsOTPRecentlyVerified(req.OTP, req.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify OTP status"})
+		return
+	}
+	if !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "OTP not verified recently"})
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	if err := dataprovider.UpdateAdminPassword(uint(userIDVal.(float64)), string(hashedPassword)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
+}
+
+func Report(c *gin.Context) {
+	classID, exists := c.Get("classID")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
+		return
+	}
+	classIDFloat, ok := classID.(uint)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classID type"})
+		return
+	}
+
+	classReport, err := dataprovider.GetClassReport(classIDFloat)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get class report"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"class_report": classReport})
+}
+
+func PersonalReport(c *gin.Context) {
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	classID, exists := c.Get("classID")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
+		return
+	}
+	classIDFloat, ok := classID.(uint)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classID type"})
+		return
+	}
+
+	personalReport, err := dataprovider.GetUserReport(classIDFloat, uint(userID.(float64)), "admin")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get personal report"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"personal_report": personalReport})
+}

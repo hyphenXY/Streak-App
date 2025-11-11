@@ -722,3 +722,74 @@ func Streak(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"currentStreak": curr, "bestStreak": best})
 }
+
+func Report(c *gin.Context) {
+	classID, exists := c.Get("classID")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing classID"})
+		return
+	}
+
+	userIDVal, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	classIDFloat, ok := classID.(uint)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid classID type"})
+		return
+	}
+
+	report, err := dataprovider.GetUserReport(uint(userIDVal.(float64)), classIDFloat, "user")
+	if err != nil {
+		println(err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch report data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"report": report})
+}
+
+func ResetPassword(c *gin.Context) {
+	type ResetPasswordRequest struct {
+		NewPassword string `json:"newPassword" binding:"required"`
+		OTP         uint   `json:"otp" binding:"required"`
+		Phone       uint   `json:"phone" binding:"required"`
+	}
+	var req ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	userIDVal, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// check if otp is verified in last 10 mins
+	isValid, err := dataprovider.IsOTPRecentlyVerified(req.OTP, req.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify OTP status"})
+		return
+	}
+	if !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "OTP not verified recently"})
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	if err := dataprovider.UpdateUserPassword(uint(userIDVal.(float64)), string(hashedPassword)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
+}

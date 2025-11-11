@@ -118,3 +118,28 @@ func UpdateProfile(req map[string]interface{}, userId uint) error {
 	}
 	return nil
 }
+
+func UpdateUserPassword(userId uint, hashedPassword string) error {
+	result := DB.Model(&models.User{}).
+		Where("id = ?", userId).
+		Update("Password", hashedPassword)
+	return result.Error
+}
+
+func IsOTPRecentlyVerified(otp uint, phone uint) (bool, error) {
+	var otpRecord models.OTPs
+	err := DB.Where("phone = ? AND otp = ?", phone, otp).Last(&otpRecord).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil // OTP not found
+		}
+		return false, err // Other error
+	}
+
+	// Check if OTP was created within 10 minutes
+	if time.Since(otpRecord.CreatedAt) > 10*time.Minute {
+		return false, nil // OTP expired
+	}
+
+	return true, nil // OTP verified successfully
+}

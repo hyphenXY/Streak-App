@@ -78,3 +78,10 @@ func UpdateAdminProfile(req map[string]interface{}, userId uint) error {
 	}
 	return nil
 }
+
+func UpdateAdminPassword(adminID uint, hashedPassword string) error {
+	result := DB.Model(&models.Admin{}).
+		Where("id = ?", adminID).
+		Update("Password", hashedPassword)
+	return result.Error
+}

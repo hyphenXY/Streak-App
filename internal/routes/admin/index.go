@@ -21,6 +21,7 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 		protected.PATCH("/profile", admin_controller.UpdateProfile)
 		protected.POST("/createClass", admin_controller.CreateClass)
 		protected.POST("/logOutAdmin", admin_controller.LogOutAdmin)
+		protected.GET("/resetPassword", admin_controller.ResetPassword)
 	}
 	
 	protectedAdminClasses := r.Group("")
@@ -33,6 +34,7 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 		protectedAdminClasses.GET("/studentsList/:classId", admin_controller.StudentsList)
 		protectedAdminClasses.GET("/streak/:classId", admin_controller.Streak)
 		protectedAdminClasses.GET("/personalSummary/:classId", admin_controller.PersonalSummary)
-
+		protectedAdminClasses.GET("/report/:classId", admin_controller.Report)
+		protectedAdminClasses.GET("/personalReport/:classId", admin_controller.PersonalReport)
 	}
 }
