@@ -3,10 +3,10 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/hyphenXY/Streak-App/internal/middleware"
 	"github.com/hyphenXY/Streak-App/internal/routes/admin"
 	"github.com/hyphenXY/Streak-App/internal/routes/root"
 	"github.com/hyphenXY/Streak-App/internal/routes/user"
-	"github.com/hyphenXY/Streak-App/internal/middleware"
 )
 
 func SetupRouter() *gin.Engine {
@@ -16,7 +16,9 @@ func SetupRouter() *gin.Engine {
 
 	// Add more custom middlewares
 	r.Use(middlewares.CORSMiddleware())
-	// etc.
+
+	limiter := middlewares.NewClientLimiter(2, 5) // 2 req/sec per client, burst up to 5
+	r.Use(limiter.LimitMiddleware())
 
 	// root-level routes (no prefix)
 	rootGroup := r.Group("/root")
