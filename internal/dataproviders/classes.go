@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/hyphenXY/Streak-App/internal/constants"
 	"github.com/hyphenXY/Streak-App/internal/models"
 	"gorm.io/gorm"
 )
@@ -267,6 +268,7 @@ func EnrollUser(userID uint, classID uint) error {
 	enrollment := models.User_Classes{
 		UserID:  userID,
 		ClassID: classID,
+		Status:  constants.UserEnrollment.Enrolled,
 	}
 	result := DB.Create(&enrollment)
 	return result.Error
@@ -462,4 +464,11 @@ func GetClassReport(classID uint) (map[string]interface{}, error) {
 		"not_marked": notMarkedYear,
 	}
 	return report, nil
+}
+
+func ChangeStatusUser(userID uint, classID uint, status int8) error {
+	result := DB.Model(&models.User_Classes{}).
+		Where("user_id = ? AND class_id = ?", userID, classID).
+		Update("status", status)
+	return result.Error
 }

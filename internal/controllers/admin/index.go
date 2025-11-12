@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hyphenXY/Streak-App/internal/constants"
 	dataprovider "github.com/hyphenXY/Streak-App/internal/dataproviders"
 	"github.com/hyphenXY/Streak-App/internal/models"
 	"github.com/hyphenXY/Streak-App/internal/utils"
@@ -821,3 +822,56 @@ func PersonalReport(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"personal_report": personalReport})
 }
+
+func KickStudent(c *gin.Context) {
+	classId, exists := c.Get("classId")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classId not provided"})
+		return
+	}
+
+	type KickStudentRequest struct {
+		StudentId uint `json:"studentId" binding:"required"`
+	}
+
+	var req KickStudentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	err := dataprovider.ChangeStatusUser(req.StudentId, classId.(uint), constants.UserEnrollment.Kicked)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to kick student from class"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Student kicked from class successfully"})
+}
+
+func BanStudent(c *gin.Context) {
+	classId, exists := c.Get("classId")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classId not provided"})
+		return
+	}
+
+	type BanStudentRequest struct {
+		StudentId uint `json:"studentId" binding:"required"`
+	}
+
+	var req BanStudentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	err := dataprovider.ChangeStatusUser(req.StudentId, classId.(uint), constants.UserEnrollment.Banned)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ban student from class"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Student banned from class successfully"})
+}
+
