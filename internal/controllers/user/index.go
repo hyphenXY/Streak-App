@@ -329,7 +329,11 @@ func UpdateProfile(c *gin.Context) {
 		"email":      strings.ToLower(strings.TrimSpace(req.Email)),
 	}
 
-	dataprovider.UpdateProfile(updateData, uint(userID.(float64)))
+	err := dataprovider.UpdateProfile(updateData, uint(userID.(float64)))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		return
+	}
 
 	// TODO: update profile in DB using updateData
 	c.JSON(http.StatusOK, gin.H{

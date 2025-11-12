@@ -20,6 +20,8 @@ func SetupRouter() *gin.Engine {
 	limiter := middlewares.NewClientLimiter(2, 5) // 2 req/sec per client, burst up to 5
 	r.Use(limiter.LimitMiddleware())
 
+	r.Use(middlewares.SecurityHeaders())
+
 	// root-level routes (no prefix)
 	rootGroup := r.Group("/root")
 	root_routes.RegisterRootRoutes(rootGroup)
