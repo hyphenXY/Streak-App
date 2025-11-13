@@ -22,6 +22,7 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 		protected.POST("/createClass", admin_controller.CreateClass)
 		protected.POST("/logOutAdmin", admin_controller.LogOutAdmin)
 		protected.GET("/resetPassword", admin_controller.ResetPassword)
+		protected.POST("/uploadProfileImage/", admin_controller.UploadProfileImage)
 	}
 	
 	protectedAdminClasses := r.Group("")

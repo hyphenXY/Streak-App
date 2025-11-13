@@ -143,3 +143,10 @@ func IsOTPRecentlyVerified(otp uint, phone uint) (bool, error) {
 
 	return true, nil // OTP verified successfully
 }
+
+func UpdateUserProfileImage(userId uint, imageURL string) error {
+	result := DB.Model(&models.User{}).
+		Where("id = ?", userId).
+		Update("ProfileImageURL", imageURL)
+	return result.Error
+}

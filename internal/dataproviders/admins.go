@@ -85,3 +85,10 @@ func UpdateAdminPassword(adminID uint, hashedPassword string) error {
 		Update("Password", hashedPassword)
 	return result.Error
 }
+
+func UpdateAdminProfileImage(adminId uint, imageURL string) error {
+	result := DB.Model(&models.Admin{}).
+		Where("id = ?", adminId).
+		Update("ProfileImageURL", imageURL)
+	return result.Error
+}

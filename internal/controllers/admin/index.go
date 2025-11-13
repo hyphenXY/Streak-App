@@ -825,3 +825,37 @@ func PersonalReport(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"personal_report": personalReport})
 }
+
+func UploadProfileImage(c *gin.Context) {
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	file, fileHeader, err := c.Request.FormFile("profileImage")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to get profile image from request"})
+		return
+	}
+
+	uploader, err := utils.NewS3Uploader()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize S3 uploader"})
+		return
+	}
+
+	fileDir := "profileimages/admin/" + strconv.Itoa(int(userID.(float64)))
+	fileURL, err := uploader.UploadFile(c.Request.Context(), file, fileHeader, fileDir)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload profile image"})
+		return
+	}
+
+	if err := dataprovider.UpdateAdminProfileImage(uint(userID.(float64)), fileURL); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile image URL"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile image uploaded successfully", "imageURL": fileURL})
+}

@@ -35,6 +35,7 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
 		protectedUser.PATCH("/profile/:id", user_controller.UpdateProfile)
 		protectedUser.GET("/profile", user_controller.Profile)
 		protectedUser.GET("/resetPassword", user_controller.ResetPassword)
+		protectedUser.POST("/uploadProfileImage/", user_controller.UploadProfileImage)
 
 	}
 }
