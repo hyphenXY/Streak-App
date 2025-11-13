@@ -17,6 +17,6 @@ jobs:
           api_key: ${{ secrets.RENDER_API_KEY }}
           clear_cache: true # Optional: Clear Render's build cache
           wait_deploy: true
-          github_deployment: true
+          github_deployment: false
           deployment_environment: 'production'
           github_token: ${{ secrets.GITHUB_TOKEN }}
