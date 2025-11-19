@@ -77,9 +77,16 @@ func IsUserAdmin(userID uint, classID uint) (bool, error) {
 
 func GetStudentsByClassID(classID uint) ([]models.User, error) {
 	var students []models.User
-	err := DB.Joins("JOIN enrollments ON enrollments.user_id = users.id").
-		Where("enrollments.class_id = ?", classID).
-		Find(&students).Error
+	var enrollments []models.User_Classes
+	err := DB.Where("class_id = ?", classID).Find(&enrollments).Error
+	if err != nil {
+		return nil, err
+	}
+	userIDs := make([]uint, len(enrollments))
+	for i, enrollment := range enrollments {
+		userIDs[i] = enrollment.UserID
+	}
+	err = DB.Where("id IN ?", userIDs).Find(&students).Error
 	if err != nil {
 		return nil, err
 	}
