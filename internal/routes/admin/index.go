@@ -23,18 +23,20 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 		protected.POST("/logOutAdmin", admin_controller.LogOutAdmin)
 		protected.GET("/resetPassword", admin_controller.ResetPassword)
 	}
-	
+
 	protectedAdminClasses := r.Group("")
 	protectedAdminClasses.Use(middlewares.AuthAdminMiddleware(), middlewares.IsAdminClass())
 	{
 		protectedAdminClasses.GET("/quickSummary/:classId", admin_controller.QuickSummary)
-		protectedAdminClasses.GET("/todaySummary/:classId",admin_controller.TodaySummary)
-		protectedAdminClasses.GET("/calendar/:classId",admin_controller.Calendar)
+		protectedAdminClasses.GET("/todaySummary/:classId", admin_controller.TodaySummary)
+		protectedAdminClasses.GET("/calendar/:classId", admin_controller.Calendar)
 		protectedAdminClasses.POST("/markAttendance/:classId", admin_controller.MarkAttendance)
 		protectedAdminClasses.GET("/studentsList/:classId", admin_controller.StudentsList)
 		protectedAdminClasses.GET("/streak/:classId", admin_controller.Streak)
 		protectedAdminClasses.GET("/personalSummary/:classId", admin_controller.PersonalSummary)
 		protectedAdminClasses.GET("/report/:classId", admin_controller.Report)
 		protectedAdminClasses.GET("/personalReport/:classId", admin_controller.PersonalReport)
+		protectedAdminClasses.POST("/kickStudent/:classId", middlewares.IsUserEnrolledInClass(), admin_controller.KickStudent)
+		protectedAdminClasses.POST("/banStudent/:classId", middlewares.IsUserEnrolledInClass(), admin_controller.BanStudent)
 	}
 }

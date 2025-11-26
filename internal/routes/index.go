@@ -17,7 +17,7 @@ func SetupRouter() *gin.Engine {
 	// Add more custom middlewares
 	r.Use(middlewares.CORSMiddleware())
 
-	limiter := middlewares.NewClientLimiter(2, 5) // 2 req/sec per client, burst up to 5
+	limiter := middlewares.NewClientLimiter(5, 10) // 2 req/sec per client, burst up to 5
 	r.Use(limiter.LimitMiddleware())
 
 	r.Use(middlewares.SecurityHeaders())
