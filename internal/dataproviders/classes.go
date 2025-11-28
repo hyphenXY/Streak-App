@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/hyphenXY/Streak-App/internal/constants"
 	"github.com/hyphenXY/Streak-App/internal/models"
 	"gorm.io/gorm"
 )
@@ -77,9 +78,16 @@ func IsUserAdmin(userID uint, classID uint) (bool, error) {
 
 func GetStudentsByClassID(classID uint) ([]models.User, error) {
 	var students []models.User
-	err := DB.Joins("JOIN enrollments ON enrollments.user_id = users.id").
-		Where("enrollments.class_id = ?", classID).
-		Find(&students).Error
+	var enrollments []models.User_Classes
+	err := DB.Where("class_id = ?", classID).Find(&enrollments).Error
+	if err != nil {
+		return nil, err
+	}
+	userIDs := make([]uint, len(enrollments))
+	for i, enrollment := range enrollments {
+		userIDs[i] = enrollment.UserID
+	}
+	err = DB.Where("id IN ?", userIDs).Find(&students).Error
 	if err != nil {
 		return nil, err
 	}
@@ -267,6 +275,7 @@ func EnrollUser(userID uint, classID uint) error {
 	enrollment := models.User_Classes{
 		UserID:  userID,
 		ClassID: classID,
+		Status:  constants.UserEnrollment.Enrolled,
 	}
 	result := DB.Create(&enrollment)
 	return result.Error
@@ -462,4 +471,11 @@ func GetClassReport(classID uint) (map[string]interface{}, error) {
 		"not_marked": notMarkedYear,
 	}
 	return report, nil
+}
+
+func ChangeStatusUser(userID uint, classID uint, status int8) error {
+	result := DB.Model(&models.User_Classes{}).
+		Where("user_id = ? AND class_id = ?", userID, classID).
+		Update("status", status)
+	return result.Error
 }

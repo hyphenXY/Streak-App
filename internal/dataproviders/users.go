@@ -144,6 +144,20 @@ func IsOTPRecentlyVerified(otp uint, phone uint) (bool, error) {
 	return true, nil // OTP verified successfully
 }
 
+func UserClassStatus(userID uint, classId uint) (int8, error) {
+	var userClass models.User_Classes
+	err := DB.Where("user_id = ? AND class_id = ?", userID, classId).First(&userClass).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	// Treat non-zero status as banned
+	return userClass.Status, nil
+}
+
 func UpdateUserProfileImage(userId uint, imageURL string) error {
 	result := DB.Model(&models.User{}).
 		Where("id = ?", userId).

@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hyphenXY/Streak-App/internal/constants"
 	dataprovider "github.com/hyphenXY/Streak-App/internal/dataproviders"
 	"github.com/hyphenXY/Streak-App/internal/models"
+	"github.com/hyphenXY/Streak-App/internal/services"
 	"github.com/hyphenXY/Streak-App/internal/utils"
 )
 
@@ -199,6 +201,70 @@ func IsAdminClass() gin.HandlerFunc {
 			return
 		}
 		c.Set("classID", uint(classIDUint))
+		c.Next()
+	}
+}
+
+func IsAllowedToEnroll() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		classCode := c.Param("classCode")
+		classID, err := dataprovider.GetClassIDByCode(classCode)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Class code not found"})
+			return
+		}
+		userIDVal, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			c.Abort()
+			return
+		}
+		status, err := dataprovider.UserClassStatus(uint(userIDVal.(float64)), classID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user status"})
+			c.Abort()
+			return
+		}
+		if status == constants.UserEnrollment.Banned {
+			c.JSON(http.StatusForbidden, gin.H{"error": "User is banned from this class"})
+			c.Abort()
+			return
+		}
+		if status == constants.UserEnrollment.Enrolled {
+			c.JSON(http.StatusForbidden, gin.H{"error": "User is already enrolled in this class"})
+			c.Abort()
+			return
+		}
+		c.Set("classId", classID)
+		c.Next()
+	}
+}
+
+func IsUserEnrolledInClass() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		classID, exists := c.Get("classID")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Class ID not provided"})
+			c.Abort()
+			return
+		}
+		userIDVal, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			c.Abort()
+			return
+		}
+		isEnrolled, err := services.IsUserEnrolledInClass(uint(userIDVal.(float64)), classID.(uint))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check enrollment status"})
+			c.Abort()
+			return
+		}
+		if !isEnrolled {
+			c.JSON(http.StatusForbidden, gin.H{"error": "User not enrolled in this class"})
+			c.Abort()
+			return
+		}
 		c.Next()
 	}
 }
