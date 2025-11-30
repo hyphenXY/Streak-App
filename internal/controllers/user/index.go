@@ -189,6 +189,7 @@ func ClassList(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
+	println("useridd,: ",userID)
 
 	// TODO: fetch class list data for user
 	var userClasses []models.User_Classes
