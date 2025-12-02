@@ -263,8 +263,6 @@ func MarkAttendance(c *gin.Context) {
 		return
 	}
 
-	println("d", uint(userIDVal.(float64)), classIDFloat)
-
 	err := dataprovider.MarkAttendanceByUser(classIDFloat, uint(userIDVal.(float64)), req.Status)
 	if err != nil {
 		// Check if attendance is already marked
