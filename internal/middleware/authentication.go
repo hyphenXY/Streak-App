@@ -200,7 +200,7 @@ func IsAdminClass() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		c.Set("classID", uint(classIDUint))
+		c.Set("classId", uint(classIDUint))
 		c.Next()
 	}
 }
