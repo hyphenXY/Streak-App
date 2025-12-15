@@ -36,7 +36,7 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 		protectedAdminClasses.GET("/personalSummary/:classId", admin_controller.PersonalSummary)
 		protectedAdminClasses.GET("/report/:classId", admin_controller.Report)
 		protectedAdminClasses.GET("/personalReport/:classId", admin_controller.PersonalReport)
-		protectedAdminClasses.POST("/kickStudent/:classId", middlewares.IsUserEnrolledInClass(), admin_controller.KickStudent)
-		protectedAdminClasses.POST("/banStudent/:classId", middlewares.IsUserEnrolledInClass(), admin_controller.BanStudent)
+		protectedAdminClasses.POST("/kickStudent/:classId", admin_controller.KickStudent)
+		protectedAdminClasses.POST("/banStudent/:classId", admin_controller.BanStudent)
 	}
 }

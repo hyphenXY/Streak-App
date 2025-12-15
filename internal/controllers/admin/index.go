@@ -15,6 +15,7 @@ import (
 	"github.com/hyphenXY/Streak-App/internal/constants"
 	dataprovider "github.com/hyphenXY/Streak-App/internal/dataproviders"
 	"github.com/hyphenXY/Streak-App/internal/models"
+	"github.com/hyphenXY/Streak-App/internal/services"
 	"github.com/hyphenXY/Streak-App/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -844,7 +845,17 @@ func KickStudent(c *gin.Context) {
 		return
 	}
 
-	err := dataprovider.ChangeStatusUser(req.StudentId, classId.(uint), constants.UserEnrollment.Kicked)
+	var ifStudentEnrolled, err = services.IsUserEnrolledInClass(req.StudentId, classId.(uint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check if student is enrolled in class"})
+		return
+	}
+	if !ifStudentEnrolled {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Student is not enrolled in class"})
+		return
+	}
+
+	err = dataprovider.ChangeStatusUser(req.StudentId, classId.(uint), constants.UserEnrollment.Kicked)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to kick student from class"})
 		return
@@ -870,7 +881,17 @@ func BanStudent(c *gin.Context) {
 		return
 	}
 
-	err := dataprovider.ChangeStatusUser(req.StudentId, classId.(uint), constants.UserEnrollment.Banned)
+	var ifStudentEnrolled, err = services.IsUserEnrolledInClass(req.StudentId, classId.(uint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check if student is enrolled in class"})
+		return
+	}
+	if !ifStudentEnrolled {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Student is not enrolled in class"})
+		return
+	}
+
+	err = dataprovider.ChangeStatusUser(req.StudentId, classId.(uint), constants.UserEnrollment.Banned)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ban student from class"})
 		return
@@ -878,4 +899,3 @@ func BanStudent(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Student banned from class successfully"})
 }
-
