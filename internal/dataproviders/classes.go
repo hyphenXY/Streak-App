@@ -272,12 +272,26 @@ func IfAlreadyEnrolled(userID uint, classID uint, enrollment *models.User_Classe
 }
 
 func EnrollUser(userID uint, classID uint) error {
-	enrollment := models.User_Classes{
-		UserID:  userID,
-		ClassID: classID,
-		Status:  constants.UserEnrollment.Enrolled,
+	var existingEnrollment models.User_Classes
+	err := DB.Where("user_id = ? AND class_id = ?", userID, classID).First(&existingEnrollment).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// Entry does not exist, create a new one
+			enrollment := models.User_Classes{
+				UserID:  userID,
+				ClassID: classID,
+				Status:  constants.UserEnrollment.Enrolled,
+			}
+			result := DB.Create(&enrollment)
+			return result.Error
+		}
+		// Some other error occurred
+		return err
 	}
-	result := DB.Create(&enrollment)
+
+	// Entry already exists, update its status
+	result := DB.Model(&existingEnrollment).Updates(models.User_Classes{Status: constants.UserEnrollment.Enrolled})
 	return result.Error
 }
 

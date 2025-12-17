@@ -851,7 +851,7 @@ func KickStudent(c *gin.Context) {
 		return
 	}
 	if !ifStudentEnrolled {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Student is not enrolled in class"})
+		c.JSON(http.StatusNotAcceptable, gin.H{"error": "Student is not enrolled in class"})
 		return
 	}
 
