@@ -79,7 +79,7 @@ func IsUserAdmin(userID uint, classID uint) (bool, error) {
 func GetStudentsByClassID(classID uint) ([]models.User, error) {
 	var students []models.User
 	var enrollments []models.User_Classes
-	err := DB.Where("class_id = ?", classID).Find(&enrollments).Error
+	err := DB.Where("class_id = ? AND status = ?", classID, constants.UserEnrollment.Enrolled).Find(&enrollments).Error
 	if err != nil {
 		return nil, err
 	}
