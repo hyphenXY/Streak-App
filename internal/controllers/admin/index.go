@@ -216,7 +216,7 @@ func PersonalSummary(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	classID, exists := c.Get("classID")
+	classID, exists := c.Get("classId")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -688,7 +688,7 @@ func Calendar(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	classID, exists := c.Get("classID")
+	classID, exists := c.Get("classId")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -722,7 +722,7 @@ func Calendar(c *gin.Context) {
 }
 
 func TodaySummary(c *gin.Context) {
-	classID, exists := c.Get("classID")
+	classID, exists := c.Get("classId")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -782,7 +782,7 @@ func ResetPassword(c *gin.Context) {
 }
 
 func Report(c *gin.Context) {
-	classID, exists := c.Get("classID")
+	classID, exists := c.Get("classId")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -808,7 +808,7 @@ func PersonalReport(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	classID, exists := c.Get("classID")
+	classID, exists := c.Get("classId")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
