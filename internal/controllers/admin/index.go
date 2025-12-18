@@ -641,7 +641,7 @@ func Streak(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	classID, exists := c.Get("classID")
+	classID, exists := c.Get("classId")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -662,7 +662,7 @@ func Streak(c *gin.Context) {
 }
 
 func QuickSummary(c *gin.Context) {
-	classID, exists := c.Get("classID")
+	classID, exists := c.Get("classId")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
