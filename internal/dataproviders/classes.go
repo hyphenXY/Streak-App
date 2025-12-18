@@ -46,11 +46,34 @@ func MarkAttendanceByUser(classID uint, userID uint, status string) error {
 }
 
 func MarkAttendanceByAdmin(classID uint, userID uint) error {
-	// check in attendances table if record exists
+	// Load IST location
+	ist, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		return err
+	}
+
+	// Current time in IST
+	nowIST := time.Now().In(ist)
+
+	// Start & end of IST day
+	startOfDayIST := time.Date(
+		nowIST.Year(), nowIST.Month(), nowIST.Day(),
+		0, 0, 0, 0, ist,
+	)
+	endOfDayIST := startOfDayIST.Add(24 * time.Hour)
+
 	var attendance models.Attendance
-	err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND marked_by_id = ? AND marked_by_role = ? AND DATE(created_at) = CURRENT_DATE", classID, userID, "admin").
-		First(&attendance).Error
+	err = DB.
+		Where(
+			"class_id = ? AND marked_by_id = ? AND marked_by_role = ? AND created_at >= ? AND created_at < ?",
+			classID,
+			userID,
+			"admin",
+			startOfDayIST.UTC(),
+			endOfDayIST.UTC(),
+		).
+		First(&attendance).
+		Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		attendance = models.Attendance{
@@ -61,9 +84,11 @@ func MarkAttendanceByAdmin(classID uint, userID uint) error {
 		}
 		return DB.Create(&attendance).Error
 	}
+
 	if err != nil {
 		return err
 	}
+
 	return errors.New("already marked")
 }
 
