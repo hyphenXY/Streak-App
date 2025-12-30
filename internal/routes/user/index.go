@@ -16,25 +16,19 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
 
 	// Protected routes
 	protectedUserClasses := r.Group("")
-	protectedUserClasses.Use(middlewares.AuthUserMiddleware(), middlewares.IsUserClass())
+	protectedUserClasses.Use(middlewares.AuthUserMiddleware())
 	{
-		protectedUserClasses.POST("/markAttendance/:classID", user_controller.MarkAttendance)
-		protectedUserClasses.GET("/classDetails/:classID", user_controller.ClassDetails)
-		protectedUserClasses.GET("/calendar/:classID", user_controller.Calendar)
-		protectedUserClasses.GET("/streak/:classID", user_controller.Streak)
-		protectedUserClasses.GET("/quickSummary/:classID", user_controller.QuickSummary)
-		protectedUserClasses.GET("/report/:classID", user_controller.Report)
-	}
-
-	protectedUser := r.Group("")
-	protectedUser.Use(middlewares.AuthUserMiddleware())
-	{
-		protectedUser.POST("/enroll/:classCode", middlewares.IsAllowedToEnroll(), user_controller.Enroll)
-		protectedUser.GET("/classList", user_controller.ClassList)
-		protectedUser.POST("/logOutUser", user_controller.LogOutUser)
-		protectedUser.PATCH("/profile/:id", user_controller.UpdateProfile)
-		protectedUser.GET("/profile", user_controller.Profile)
-		protectedUser.POST("/resetPassword", user_controller.ResetPassword)
-
+		protectedUserClasses.POST("/markAttendance/:classID", middlewares.IsUserClass(), user_controller.MarkAttendance)
+		protectedUserClasses.GET("/classDetails/:classID", middlewares.IsUserClass(), user_controller.ClassDetails)
+		protectedUserClasses.GET("/calendar/:classID", middlewares.IsUserClass(), user_controller.Calendar)
+		protectedUserClasses.GET("/streak/:classID", middlewares.IsUserClass(), user_controller.Streak)
+		protectedUserClasses.GET("/quickSummary/:classID", middlewares.IsUserClass(), user_controller.QuickSummary)
+		protectedUserClasses.GET("/report/:classID", middlewares.IsUserClass(), user_controller.Report)
+		protectedUserClasses.POST("/enroll/:classCode", middlewares.IsAllowedToEnroll(), user_controller.Enroll)
+		protectedUserClasses.GET("/classList", user_controller.ClassList)
+		protectedUserClasses.POST("/logOutUser", user_controller.LogOutUser)
+		protectedUserClasses.PATCH("/profile/:id", user_controller.UpdateProfile)
+		protectedUserClasses.GET("/profile", user_controller.Profile)
+		protectedUserClasses.POST("/resetPassword", user_controller.ResetPassword)
 	}
 }

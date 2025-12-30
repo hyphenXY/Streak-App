@@ -22,21 +22,16 @@ func RegisterAdminRoutes(r *gin.RouterGroup) {
 		protected.POST("/createClass", admin_controller.CreateClass)
 		protected.POST("/logOutAdmin", admin_controller.LogOutAdmin)
 		protected.POST("/resetPassword", admin_controller.ResetPassword)
-	}
-
-	protectedAdminClasses := r.Group("")
-	protectedAdminClasses.Use(middlewares.AuthAdminMiddleware(), middlewares.IsAdminClass())
-	{
-		protectedAdminClasses.GET("/quickSummary/:classId", admin_controller.QuickSummary)
-		protectedAdminClasses.GET("/todaySummary/:classId", admin_controller.TodaySummary)
-		protectedAdminClasses.GET("/calendar/:classId", admin_controller.Calendar)
-		protectedAdminClasses.POST("/markAttendance/:classId", admin_controller.MarkAttendance)
-		protectedAdminClasses.GET("/studentsList/:classId", admin_controller.StudentsList)
-		protectedAdminClasses.GET("/streak/:classId", admin_controller.Streak)
-		protectedAdminClasses.GET("/personalSummary/:classId", admin_controller.PersonalSummary)
-		protectedAdminClasses.GET("/report/:classId", admin_controller.Report)
-		protectedAdminClasses.GET("/personalReport/:classId", admin_controller.PersonalReport)
-		protectedAdminClasses.POST("/kickStudent/:classId", admin_controller.KickStudent)
-		protectedAdminClasses.POST("/banStudent/:classId", admin_controller.BanStudent)
+		protected.GET("/quickSummary/:classId", middlewares.IsAdminClass(), admin_controller.QuickSummary)
+		protected.GET("/todaySummary/:classId", middlewares.IsAdminClass(), admin_controller.TodaySummary)
+		protected.GET("/calendar/:classId", middlewares.IsAdminClass(), admin_controller.Calendar)
+		protected.POST("/markAttendance/:classId", middlewares.IsAdminClass(), admin_controller.MarkAttendance)
+		protected.GET("/studentsList/:classId", middlewares.IsAdminClass(), admin_controller.StudentsList)
+		protected.GET("/streak/:classId", middlewares.IsAdminClass(), admin_controller.Streak)
+		protected.GET("/personalSummary/:classId", middlewares.IsAdminClass(), admin_controller.PersonalSummary)
+		protected.GET("/report/:classId", middlewares.IsAdminClass(), admin_controller.Report)
+		protected.GET("/personalReport/:classId", middlewares.IsAdminClass(), admin_controller.PersonalReport)
+		protected.POST("/kickStudent/:classId", middlewares.IsAdminClass(), admin_controller.KickStudent)
+		protected.POST("/banStudent/:classId", middlewares.IsAdminClass(), admin_controller.BanStudent)
 	}
 }
