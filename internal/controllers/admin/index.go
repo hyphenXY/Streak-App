@@ -516,7 +516,7 @@ func RefreshTokenUser(c *gin.Context) {
 
 	// 4️⃣ Generate new access token
 	accessToken, err := utils.GenerateJWT(map[string]any{
-		"user_id": user.ID,
+		"userId": user.ID,
 		"role":    "admin",
 	})
 	if err != nil {
