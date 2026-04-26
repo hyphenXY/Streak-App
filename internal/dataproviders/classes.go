@@ -10,6 +10,33 @@ import (
 	"gorm.io/gorm"
 )
 
+// istBoundaries returns IST-based time-range boundaries as UTC timestamps for DB queries.
+func istBoundaries() (startDay, endDay, startWeek, endWeek, startMonth, endMonth, startYear, endYear time.Time) {
+	ist, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(ist)
+
+	// Today
+	startDay = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, ist)
+	endDay = startDay.Add(24 * time.Hour)
+
+	// Current week (Monday as week start)
+	weekday := int(now.Weekday())
+	if weekday == 0 { // Sunday
+		weekday = 7
+	}
+	startWeek = time.Date(now.Year(), now.Month(), now.Day()-weekday+1, 0, 0, 0, 0, ist)
+	endWeek = startWeek.Add(7 * 24 * time.Hour)
+
+	// Current month
+	startMonth = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, ist)
+	endMonth = startMonth.AddDate(0, 1, 0)
+
+	// Current year
+	startYear = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, ist)
+	endYear = startYear.AddDate(1, 0, 0)
+	return
+}
+
 func IfClassExists(classID uint) (bool, error) {
 	var count int64
 	err := DB.Model(&models.Classes{}).Where("id = ?", classID).Count(&count).Error
@@ -24,10 +51,31 @@ func CreateClass(class *models.Classes) error {
 }
 
 func MarkAttendanceByUser(classID uint, userID uint, status string) error {
-	// check in attendances table if record exists
+	// Load IST location
+	ist, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		return err
+	}
+
+	// Current time in IST
+	nowIST := time.Now().In(ist)
+
+	// Start & end of IST day (stored as UTC for the query)
+	startOfDayIST := time.Date(
+		nowIST.Year(), nowIST.Month(), nowIST.Day(),
+		0, 0, 0, 0, ist,
+	)
+	endOfDayIST := startOfDayIST.Add(24 * time.Hour)
+
+	// Check if attendance already marked today (IST)
 	var attendance models.Attendance
-	err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND marked_by_id = ? AND marked_by_role = ? AND DATE(created_at) = CURRENT_DATE", classID, userID, "user").
+	err = DB.Model(&models.Attendance{}).
+		Where(
+			"class_id = ? AND marked_by_id = ? AND marked_by_role = ? AND created_at >= ? AND created_at < ?",
+			classID, userID, "user",
+			startOfDayIST.UTC(),
+			endOfDayIST.UTC(),
+		).
 		First(&attendance).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -207,9 +255,14 @@ func GetUserStreak(userID uint, classID uint, role string) (int, int, error) {
 }
 
 func GetUserQuickSummary(userID uint, classID uint, role string) (map[string]interface{}, error) {
+	startDay, endDay, startWeek, endWeek, _, _, _, _ := istBoundaries()
+
 	var todayAttendance models.Attendance
 	err := DB.Model(&models.Attendance{}).
-		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND DATE(created_at) = CURRENT_DATE", userID, role, classID).
+		Where(
+			"marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND created_at >= ? AND created_at < ?",
+			userID, role, classID, startDay.UTC(), endDay.UTC(),
+		).
 		First(&todayAttendance).Error
 
 	todayStatus := "unmarked"
@@ -228,14 +281,20 @@ func GetUserQuickSummary(userID uint, classID uint, role string) (map[string]int
 
 	var currentWeekPresent int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND YEARWEEK(created_at) = YEARWEEK(CURRENT_DATE)", userID, role, classID, "present").
+		Where(
+			"marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			userID, role, classID, "present", startWeek.UTC(), endWeek.UTC(),
+		).
 		Count(&currentWeekPresent).Error; err != nil {
 		return nil, err
 	}
 
 	var currentWeekAbsent int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND YEARWEEK(created_at) = YEARWEEK(CURRENT_DATE)", userID, role, classID, "absent").
+		Where(
+			"marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			userID, role, classID, "absent", startWeek.UTC(), endWeek.UTC(),
+		).
 		Count(&currentWeekAbsent).Error; err != nil {
 		return nil, err
 	}
@@ -271,7 +330,6 @@ func GetUserQuickSummary(userID uint, classID uint, role string) (map[string]int
 
 	totalNotMarked := max(totalSessions-(totalPresent+totalAbsent), 0)
 
-	// quick summary map (kept here for future use; function returns total_not_marked)
 	summary := map[string]interface{}{
 		"today_status":            todayStatus,
 		"current_week_present":    currentWeekPresent,
@@ -347,10 +405,14 @@ func GetClassSummary(classID uint) (map[string]interface{}, error) {
 	}
 	summary["total_absent"] = totalAbsent
 
-	// Current week present/absent (uses YEARWEEK to match earlier queries)
+	// Current week present/absent (IST-aware)
+	_, _, startWeek, endWeek, _, _, _, _ := istBoundaries()
 	var currentWeekPresent int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND YEARWEEK(created_at) = YEARWEEK(CURRENT_DATE)", classID, "present").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "present", startWeek.UTC(), endWeek.UTC(),
+		).
 		Count(&currentWeekPresent).Error; err != nil {
 		return nil, err
 	}
@@ -358,7 +420,10 @@ func GetClassSummary(classID uint) (map[string]interface{}, error) {
 
 	var currentWeekAbsent int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND YEARWEEK(created_at) = YEARWEEK(CURRENT_DATE)", classID, "absent").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "absent", startWeek.UTC(), endWeek.UTC(),
+		).
 		Count(&currentWeekAbsent).Error; err != nil {
 		return nil, err
 	}
@@ -387,9 +452,14 @@ func GetClassSummary(classID uint) (map[string]interface{}, error) {
 func GetTodaySummary(classID uint) (map[string]interface{}, error) {
 	summary := make(map[string]interface{})
 
+	startDay, endDay, _, _, _, _, _, _ := istBoundaries()
+
 	var totalPresent int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND DATE(created_at) = CURDATE()", classID, "present").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "present", startDay.UTC(), endDay.UTC(),
+		).
 		Count(&totalPresent).Error; err != nil {
 		return nil, err
 	}
@@ -397,7 +467,10 @@ func GetTodaySummary(classID uint) (map[string]interface{}, error) {
 
 	var totalAbsent int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND DATE(created_at) = CURDATE()", classID, "absent").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "absent", startDay.UTC(), endDay.UTC(),
+		).
 		Count(&totalAbsent).Error; err != nil {
 		return nil, err
 	}
@@ -415,36 +488,56 @@ func GetTodaySummary(classID uint) (map[string]interface{}, error) {
 }
 
 func GetUserReport(id uint, classID uint, role string) (map[string]interface{}, error) {
+	_, _, _, _, startMonth, endMonth, startYear, endYear := istBoundaries()
+
 	var presentMonth, absentMonth, notMarkedMonth int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND MONTH(created_at) = MONTH(CURRENT_DATE) AND YEAR(created_at) = YEAR(CURRENT_DATE)", id, role, classID, "present").
+		Where(
+			"marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			id, role, classID, "present", startMonth.UTC(), endMonth.UTC(),
+		).
 		Count(&presentMonth).Error; err != nil {
 		return nil, err
 	}
 	if err := DB.Model(&models.Attendance{}).
-		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND MONTH(created_at) = MONTH(CURRENT_DATE) AND YEAR(created_at) = YEAR(CURRENT_DATE)", id, role, classID, "absent").
+		Where(
+			"marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			id, role, classID, "absent", startMonth.UTC(), endMonth.UTC(),
+		).
 		Count(&absentMonth).Error; err != nil {
 		return nil, err
 	}
 	if err := DB.Model(&models.Attendance{}).
-		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND MONTH(created_at) = MONTH(CURRENT_DATE) AND YEAR(created_at) = YEAR(CURRENT_DATE)", id, role, classID, "not_marked").
+		Where(
+			"marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			id, role, classID, "not_marked", startMonth.UTC(), endMonth.UTC(),
+		).
 		Count(&notMarkedMonth).Error; err != nil {
 		return nil, err
 	}
 
 	var presentYear, absentYear, notMarkedYear int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND YEAR(created_at) = YEAR(CURRENT_DATE)", id, role, classID, "present").
+		Where(
+			"marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			id, role, classID, "present", startYear.UTC(), endYear.UTC(),
+		).
 		Count(&presentYear).Error; err != nil {
 		return nil, err
 	}
 	if err := DB.Model(&models.Attendance{}).
-		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND YEAR(created_at) = YEAR(CURRENT_DATE)", id, role, classID, "absent").
+		Where(
+			"marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			id, role, classID, "absent", startYear.UTC(), endYear.UTC(),
+		).
 		Count(&absentYear).Error; err != nil {
 		return nil, err
 	}
 	if err := DB.Model(&models.Attendance{}).
-		Where("marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND YEAR(created_at) = YEAR(CURRENT_DATE)", id, role, classID, "not_marked").
+		Where(
+			"marked_by_id = ? AND marked_by_role = ? AND class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			id, role, classID, "not_marked", startYear.UTC(), endYear.UTC(),
+		).
 		Count(&notMarkedYear).Error; err != nil {
 		return nil, err
 	}
@@ -464,36 +557,56 @@ func GetUserReport(id uint, classID uint, role string) (map[string]interface{}, 
 }
 
 func GetClassReport(classID uint) (map[string]interface{}, error) {
+	_, _, _, _, startMonth, endMonth, startYear, endYear := istBoundaries()
+
 	var presentMonth, absentMonth, notMarkedMonth int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND MONTH(created_at) = MONTH(CURRENT_DATE) AND YEAR(created_at) = YEAR(CURRENT_DATE)", classID, "present").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "present", startMonth.UTC(), endMonth.UTC(),
+		).
 		Count(&presentMonth).Error; err != nil {
 		return nil, err
 	}
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND MONTH(created_at) = MONTH(CURRENT_DATE) AND YEAR(created_at) = YEAR(CURRENT_DATE)", classID, "absent").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "absent", startMonth.UTC(), endMonth.UTC(),
+		).
 		Count(&absentMonth).Error; err != nil {
 		return nil, err
 	}
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND MONTH(created_at) = MONTH(CURRENT_DATE) AND YEAR(created_at) = YEAR(CURRENT_DATE)", classID, "not_marked").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "not_marked", startMonth.UTC(), endMonth.UTC(),
+		).
 		Count(&notMarkedMonth).Error; err != nil {
 		return nil, err
 	}
 
 	var presentYear, absentYear, notMarkedYear int64
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND YEAR(created_at) = YEAR(CURRENT_DATE)", classID, "present").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "present", startYear.UTC(), endYear.UTC(),
+		).
 		Count(&presentYear).Error; err != nil {
 		return nil, err
 	}
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND YEAR(created_at) = YEAR(CURRENT_DATE)", classID, "absent").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "absent", startYear.UTC(), endYear.UTC(),
+		).
 		Count(&absentYear).Error; err != nil {
 		return nil, err
 	}
 	if err := DB.Model(&models.Attendance{}).
-		Where("class_id = ? AND status = ? AND YEAR(created_at) = YEAR(CURRENT_DATE)", classID, "not_marked").
+		Where(
+			"class_id = ? AND status = ? AND created_at >= ? AND created_at < ?",
+			classID, "not_marked", startYear.UTC(), endYear.UTC(),
+		).
 		Count(&notMarkedYear).Error; err != nil {
 		return nil, err
 	}

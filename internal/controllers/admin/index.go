@@ -216,7 +216,7 @@ func PersonalSummary(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	classID, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -309,7 +309,7 @@ func Profile(c *gin.Context) {
 
 // PATCH /user/profile/:id
 func UpdateProfile(c *gin.Context) {
-	userID, exists := c.Get("UserId")
+	userID, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
@@ -319,6 +319,7 @@ func UpdateProfile(c *gin.Context) {
 		FirstName string `json:"firstName"`
 		LastName  string `json:"lastName"`
 		Email     string `json:"email"`
+		Phone     string `json:"phone"`
 	}
 
 	var req UpdateProfileRequest
@@ -331,6 +332,7 @@ func UpdateProfile(c *gin.Context) {
 		"first_name": req.FirstName,
 		"last_name":  req.LastName,
 		"email":      strings.ToLower(strings.TrimSpace(req.Email)),
+		"phone":      req.Phone,
 	}
 
 	err := dataprovider.UpdateAdminProfile(updateData, uint(userID.(float64)))
@@ -345,6 +347,7 @@ func UpdateProfile(c *gin.Context) {
 		"user_id": userID,
 		"name":    req.FirstName + " " + req.LastName,
 		"email":   req.Email,
+		"phone":   req.Phone,
 	})
 }
 
@@ -517,7 +520,7 @@ func RefreshTokenUser(c *gin.Context) {
 	// 4️⃣ Generate new access token
 	accessToken, err := utils.GenerateJWT(map[string]any{
 		"userId": user.ID,
-		"role":    "admin",
+		"role":   "admin",
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create access token"})
@@ -611,7 +614,22 @@ func StudentsList(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch students"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"students": students})
+
+	type StudentWithStreak struct {
+		models.User
+		CurrentStreak int `json:"currentStreak"`
+	}
+
+	var response []StudentWithStreak
+	for _, student := range students {
+		current, _, _ := dataprovider.GetUserStreak(student.ID, uint(classIdUint), "user")
+		response = append(response, StudentWithStreak{
+			User:          student,
+			CurrentStreak: current,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"students": response})
 }
 
 func LogOutAdmin(c *gin.Context) {
@@ -639,7 +657,7 @@ func Streak(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	classID, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -660,7 +678,7 @@ func Streak(c *gin.Context) {
 }
 
 func QuickSummary(c *gin.Context) {
-	classID, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -686,7 +704,7 @@ func Calendar(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	classID, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -720,7 +738,7 @@ func Calendar(c *gin.Context) {
 }
 
 func TodaySummary(c *gin.Context) {
-	classID, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -780,7 +798,7 @@ func ResetPassword(c *gin.Context) {
 }
 
 func Report(c *gin.Context) {
-	classID, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -806,7 +824,7 @@ func PersonalReport(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	classID, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
@@ -827,9 +845,9 @@ func PersonalReport(c *gin.Context) {
 }
 
 func KickStudent(c *gin.Context) {
-	classId, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "classId not provided"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
 	}
 
@@ -843,7 +861,7 @@ func KickStudent(c *gin.Context) {
 		return
 	}
 
-	var ifStudentEnrolled, err = services.IsUserEnrolledInClass(req.StudentId, classId.(uint))
+	var ifStudentEnrolled, err = services.IsUserEnrolledInClass(req.StudentId, classID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check if student is enrolled in class"})
 		return
@@ -853,7 +871,7 @@ func KickStudent(c *gin.Context) {
 		return
 	}
 
-	err = dataprovider.ChangeStatusUser(req.StudentId, classId.(uint), constants.UserEnrollment.Kicked)
+	err = dataprovider.ChangeStatusUser(req.StudentId, classID.(uint), constants.UserEnrollment.Kicked)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to kick student from class"})
 		return
@@ -863,9 +881,9 @@ func KickStudent(c *gin.Context) {
 }
 
 func BanStudent(c *gin.Context) {
-	classId, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "classId not provided"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not provided"})
 		return
 	}
 
@@ -879,7 +897,7 @@ func BanStudent(c *gin.Context) {
 		return
 	}
 
-	var ifStudentEnrolled, err = services.IsUserEnrolledInClass(req.StudentId, classId.(uint))
+	var ifStudentEnrolled, err = services.IsUserEnrolledInClass(req.StudentId, classID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check if student is enrolled in class"})
 		return
@@ -889,7 +907,7 @@ func BanStudent(c *gin.Context) {
 		return
 	}
 
-	err = dataprovider.ChangeStatusUser(req.StudentId, classId.(uint), constants.UserEnrollment.Banned)
+	err = dataprovider.ChangeStatusUser(req.StudentId, classID.(uint), constants.UserEnrollment.Banned)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ban student from class"})
 		return

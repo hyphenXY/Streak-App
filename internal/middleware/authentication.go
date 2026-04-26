@@ -200,7 +200,7 @@ func IsAdminClass() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		c.Set("classId", uint(classIDUint))
+		c.Set("classID", uint(classIDUint))
 		c.Next()
 	}
 }
@@ -235,7 +235,7 @@ func IsAllowedToEnroll() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		c.Set("classId", classID)
+		c.Set("classID", classID)
 		c.Next()
 	}
 }

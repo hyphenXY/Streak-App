@@ -303,16 +303,17 @@ func Profile(c *gin.Context) {
 }
 
 func UpdateProfile(c *gin.Context) {
-	userID, exists := c.Get("UserId")
+	userID, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
 	type UpdateProfileRequest struct {
-		FirstName string `json:"firstName"`
-		LastName  string `json:"lastName"`
-		Email     string `json:"email"`
+		FirstName   string `json:"firstName"`
+		LastName    string `json:"lastName"`
+		Email       string `json:"email"`
+		PhoneNumber string `json:"phoneNumber"`
 	}
 
 	var req UpdateProfileRequest
@@ -325,6 +326,7 @@ func UpdateProfile(c *gin.Context) {
 		"first_name": req.FirstName,
 		"last_name":  req.LastName,
 		"email":      strings.ToLower(strings.TrimSpace(req.Email)),
+		"phone":      req.PhoneNumber,
 	}
 
 	err := dataprovider.UpdateProfile(updateData, uint(userID.(float64)))
@@ -339,6 +341,7 @@ func UpdateProfile(c *gin.Context) {
 		"user_id": userID,
 		"name":    req.FirstName + " " + req.LastName,
 		"email":   req.Email,
+		"phone":  req.PhoneNumber,
 	})
 }
 
@@ -473,14 +476,14 @@ func VerifyOTP(c *gin.Context) {
 }
 
 func Enroll(c *gin.Context) {
-	classID, exists := c.Get("classId")
+	classID, exists := c.Get("classID")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "classId not found in context"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "classID not found in context"})
 		return
 	}
 	classIDUint, ok := classID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid classId type in context"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid classID type in context"})
 		return
 	}
 
@@ -539,7 +542,7 @@ func RefreshTokenUser(c *gin.Context) {
 	// 4️⃣ Generate new access token
 	accessToken, err := utils.GenerateJWT(map[string]any{
 		"userId": user.ID,
-		"role":    "user",
+		"role":   "user",
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create access token"})
