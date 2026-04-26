@@ -95,8 +95,8 @@ func UpdateProfile(req map[string]interface{}, userId uint) error {
 	if req["last_name"] != "" {
 		updates["LastName"] = req["last_name"]
 	}
-	if req["Email"] != "" {
-		updates["Email"] = req["Email"]
+	if req["email"] != "" {
+		updates["Email"] = req["email"]
 	}
 
 	// Always update UpdatedAt

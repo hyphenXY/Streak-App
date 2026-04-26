@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -282,6 +281,8 @@ func MarkAttendance(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Attendance already marked"})
 			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark attendance"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Attendance marked", "class_id": ClassIDUint})
@@ -392,17 +393,6 @@ func SendOTP(c *gin.Context) {
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+os.Getenv("FAZPASS_MERCHANT_KEY"))
-
-	for k, v := range httpReq.Header {
-		println("Header:", k, "=", v[0])
-	}
-	if httpReq.Body != nil {
-		bodyBytes, _ := payloadBytes, error(nil)
-		if bodyBytes == nil {
-			bodyBytes, _ = io.ReadAll(httpReq.Body)
-		}
-		println("Body:", string(bodyBytes))
-	}
 
 	// client := &http.Client{}
 	// resp, err := client.Do(httpReq)
@@ -535,7 +525,7 @@ func RefreshTokenUser(c *gin.Context) {
 	}
 
 	expiry := time.Now().Add(30 * 24 * time.Hour)
-	if err := dataprovider.UpdateUserRefreshToken(user.ID, newRefreshToken, expiry); err != nil {
+	if err := dataprovider.UpdateAdminRefreshToken(user.ID, newRefreshToken, expiry); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update refresh token"})
 		return
 	}
@@ -835,7 +825,7 @@ func PersonalReport(c *gin.Context) {
 		return
 	}
 
-	personalReport, err := dataprovider.GetUserReport(classIDFloat, uint(userID.(float64)), "admin")
+	personalReport, err := dataprovider.GetUserReport(uint(userID.(float64)), classIDFloat, "admin")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get personal report"})
 		return
@@ -903,7 +893,7 @@ func BanStudent(c *gin.Context) {
 		return
 	}
 	if !ifStudentEnrolled {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Student is not enrolled in class"})
+		c.JSON(http.StatusNotAcceptable, gin.H{"error": "Student is not enrolled in class"})
 		return
 	}
 

@@ -41,7 +41,9 @@ func RevokeAdminRefreshToken(refreshToken string) error {
 
 func GetAdminProfile(adminID uint) (*models.Admin, error) {
 	admin := &models.Admin{}
-	DB.Where("id = ?", adminID).First(admin)
+	if err := DB.Where("id = ?", adminID).First(admin).Error; err != nil {
+		return nil, err
+	}
 	return admin, nil
 }
 
@@ -55,8 +57,8 @@ func UpdateAdminProfile(req map[string]interface{}, userId uint) error {
 	if req["last_name"] != "" {
 		updates["LastName"] = req["last_name"]
 	}
-	if req["Email"] != "" {
-		updates["Email"] = req["Email"]
+	if req["email"] != "" {
+		updates["Email"] = req["email"]
 	}
 
 	// Always update UpdatedAt

@@ -211,6 +211,7 @@ func IsAllowedToEnroll() gin.HandlerFunc {
 		classID, err := dataprovider.GetClassIDByCode(classCode)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Class code not found"})
+			c.Abort()
 			return
 		}
 		userIDVal, exists := c.Get("userId")
