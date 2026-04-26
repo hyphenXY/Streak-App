@@ -27,7 +27,7 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
 		protectedUserClasses.POST("/enroll/:classCode", middlewares.IsAllowedToEnroll(), user_controller.Enroll)
 		protectedUserClasses.GET("/classList", user_controller.ClassList)
 		protectedUserClasses.POST("/logOutUser", user_controller.LogOutUser)
-		protectedUserClasses.PATCH("/profile/:id", user_controller.UpdateProfile)
+		protectedUserClasses.PATCH("/profile", user_controller.UpdateProfile)
 		protectedUserClasses.GET("/profile", user_controller.Profile)
 		protectedUserClasses.POST("/resetPassword", user_controller.ResetPassword)
 	}
