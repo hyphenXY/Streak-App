@@ -545,9 +545,10 @@ func CreateClass(c *gin.Context) {
 	}
 
 	type CreateClassRequest struct {
-		Name  string `json:"name" binding:"required"`
-		Email string `json:"email"`
-		Phone string `json:"phone"`
+		Name                      string `json:"name" binding:"required"`
+		Email                     string `json:"email"`
+		Phone                     string `json:"phone"`
+		NumberOfWorkingDaysInWeek uint8  `json:"numberOfWorkingDaysInWeek"`
 	}
 
 	var req CreateClassRequest
@@ -559,11 +560,12 @@ func CreateClass(c *gin.Context) {
 	classCode := utils.GenerateRandomDigits(6)
 
 	class := models.Classes{
-		Name:             req.Name,
-		Email:            req.Email,
-		Phone:            req.Phone,
-		ClassCode:        classCode,
-		CreatedByAdminId: uint(adminId.(float64)),
+		Name:                      req.Name,
+		Email:                     req.Email,
+		Phone:                     req.Phone,
+		ClassCode:                 classCode,
+		NumberOfWorkingDaysInWeek: req.NumberOfWorkingDaysInWeek,
+		CreatedByAdminId:          uint(adminId.(float64)),
 	}
 
 	if err := dataprovider.CreateClass(&class); err != nil {

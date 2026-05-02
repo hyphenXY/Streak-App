@@ -187,7 +187,7 @@ func ClassList(c *gin.Context) {
 	userID, err := c.Get("userId")
 	if !err {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
+		return	
 	}
 
 	// TODO: fetch class list data for user
@@ -217,14 +217,15 @@ func ClassList(c *gin.Context) {
 	}
 	for _, class := range classes {
 		joinedClasses = append(joinedClasses, gin.H{
-			"class_id":            class.ID,
-			"class_name":          class.Name,
-			"class_code":          class.ClassCode,
-			"created_at":          class.CreatedAt,
-			"joined_at":           classJoinMap[class.ID],
-			"email":               class.Email,
-			"phone":               class.Phone,
-			"created_by_admin_id": class.CreatedByAdminId,
+			"class_id":                       class.ID,
+			"class_name":                     class.Name,
+			"class_code":                     class.ClassCode,
+			"created_at":                     class.CreatedAt,
+			"joined_at":                      classJoinMap[class.ID],
+			"email":                          class.Email,
+			"phone":                          class.Phone,
+			"created_by_admin_id":            class.CreatedByAdminId,
+			"number_of_working_days_in_week": class.NumberOfWorkingDaysInWeek,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -341,7 +342,7 @@ func UpdateProfile(c *gin.Context) {
 		"user_id": userID,
 		"name":    req.FirstName + " " + req.LastName,
 		"email":   req.Email,
-		"phone":  req.PhoneNumber,
+		"phone":   req.PhoneNumber,
 	})
 }
 
